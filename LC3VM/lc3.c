@@ -47,7 +47,7 @@ uint16_t check_key()
 // instead of halting execution while waiting for input
 
 enum {
-    MR_KBSR = 0xFF00,   // keyboard status
+    MR_KBSR = 0xFE00,   // keyboard status
     MR_KBDR = 0xFE02    // keyboard data
 };
 
@@ -176,7 +176,7 @@ void op_add (uint16_t instruction) {
     uint16_t imm = (instruction >> 5) & 0x1;    // immediate?
 
     if (imm) {
-        uint16_t imm5 = sign_extend (instruction & 0x15, 5);
+        uint16_t imm5 = sign_extend (instruction & 0x1F, 5);
         reg[r0] = reg[r1] + imm5;
     } else {
         uint16_t r2 = instruction & 0x7;
@@ -235,7 +235,7 @@ void op_and (uint16_t instruction) {
 
     if (imm) {
         uint16_t imm5 = sign_extend (instruction & 0x1F, 5);
-        reg[r0] = reg[r1] & sign_extend (imm5, 5);
+        reg[r0] = reg[r1] & imm5;
     } else {
         uint16_t r2 = instruction & 0x7;
         reg[r0] = reg[r1] & reg[r2];
@@ -264,6 +264,7 @@ void op_store_register (uint16_t instruction) {
     uint16_t r1 = (instruction >> 6) & 0x7;
     uint16_t offset = sign_extend (instruction & 0x3F, 6);
     mem_write(reg[r1] + offset, reg[r0]);
+    update_flags (r0);
 }
 
 // opcode 9
@@ -274,7 +275,7 @@ void op_not (uint16_t instruction) {
     uint16_t r0 = (instruction >> 9) & 0x7;     // destination register
     uint16_t r1 = (instruction >> 6) & 0x7;     // source register
 
-    reg[r0] = -reg[r1];
+    reg[r0] = ~reg[r1];
     update_flags (r0);
 }
 
@@ -298,7 +299,6 @@ void op_store_indirect (uint16_t instruction) {
     uint16_t r0 = (instruction >> 9) & 0x7;
     uint16_t pc_offset = sign_extend (instruction & 0x1FF, 9);
     mem_write (mem_read (reg[R_PC] + pc_offset), reg[r0]);
-    return;
 }
 
 // opode 12
@@ -443,7 +443,7 @@ int main (int argc, char** argv) {
         printf ("Usage: lc3 [image-file1] ...\n");
         exit (2);
     }
-    for (int i = 2; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (!read_image (argv[i])) {
             printf ("Failed to load image: %s\n", argv[i]);
             exit (1);
