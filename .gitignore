@@ -1,3 +1,4 @@
 **/*.out
 **/*.s
 **/*.obj
+LC3VM/lc3-vm

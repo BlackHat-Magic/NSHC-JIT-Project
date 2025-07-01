@@ -6,7 +6,7 @@ Focus on difference between JIT and interpretter; talk about memory and compile 
 
 ## TLang (placeholder name)
 
-T Lang *will* have the following reserved keywords:
+T Lang will *probably* have the following reserved keywords:
 
 - TRUE, FALSE, NULL
 - [Data Types]
@@ -38,3 +38,7 @@ I followed a [tutorial on GitHub](https://github.com/spencertipping/shell-tutori
 ## LC3 Virtual Machine (`./LC3VM`)
 
 I followed an [online tutorial](https://www.jmeiners.com/lc3-vm/) detailing how to write an LC3 virtual machine as an initial proof of concept.
+
+## RISC-V Virtual Machine (`./rv32i-vm`)
+
+A virtual machine that implements the RV32I instruction set; this will be where the JIT compiler runs. Maybe we'll switch to RV64I later
