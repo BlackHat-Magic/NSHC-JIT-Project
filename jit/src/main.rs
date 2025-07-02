@@ -274,6 +274,7 @@ impl Parser {
     }
 
     fn parse_assignment(&mut self, variable_name: String) -> Result<Statement, String> {
+        // TODO: associativity
         self.expect("=")?;
         let expression = self.parse_expression()?;
         // self.expect(";")?;
@@ -390,40 +391,18 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, String> {
-        // TODO: operator precedence and associativity
-        // also make sure assigning truth values to non-bools works right
-        if(self.peek() == "!" || self.peek() == "-") {
-            let op = self.consume();
-            let expression = self.parse_expression()?;
-            let unary_op = Expression::UnaryOp {
-                op: op.clone(),
-                expression: Box::new(expression),
-            };
-            Ok(unary_op)
-        }
+        // Start with the lowest precedence: logical operators
+        let mut left = self.parse_logical_or()?;
+        Ok(left)
+    }
 
-        let mut left = self.parse_primary()?;
+    fn parse_logical_or(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_logical_and()?;
 
         while let Some(op) = self.peek() {
-            if op == "+" || op == "-" || op == "*" || op == "/" {
+            if op == "||" {
                 self.consume();
-                let right = self.parse_primary()?;
-                left = Expression::BinaryOp {
-                    op: op.clone(),
-                    left: Box::new(left),
-                    right: Box::new(right),
-                };
-            } else if op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" {
-                self.consume();
-                let right = self.parse_primary()?;
-                left = Expression::Comparison {
-                    op: op.clone(),
-                    left: Box::new(left),
-                    right: Box::new(right),
-                };
-            } else if op == "&&" || op == "||" {
-                self.consume();
-                let right = self.parse_primary()?;
+                let right = self.parse_logical_and()?;
                 left = Expression::LogicalOp {
                     op: op.clone(),
                     left: Box::new(left),
@@ -433,8 +412,103 @@ impl Parser {
                 break;
             }
         }
-
         Ok(left)
+    }
+
+    fn parse_logical_and(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_comparison()?;
+
+        while let Some(op) = self.peek() {
+            if op == "&&" {
+                self.consume();
+                let right = self.parse_comparison()?;
+                left = Expression::LogicalOp {
+                    op: op.clone(),
+                    left: Box::new(left),
+                    right: Box::new(right),
+                };
+            } else {
+                break;
+            }
+        }
+        Ok(left)
+    }
+
+    fn parse_comparison(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_addition()?;
+
+        while let Some(op) = self.peek() {
+            if op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" {
+                self.consume();
+                let right = self.parse_addition()?;
+                left = Expression::Comparison {
+                    op: op.clone(),
+                    left: Box::new(left),
+                    right: Box::new(right),
+                };
+            } else {
+                break;
+            }
+        }
+        Ok(left)
+    }
+
+    fn parse_addition(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_multiplication()?;
+
+        while let Some(op) = self.peek() {
+            if op == "+" || op == "-" {
+                self.consume();
+                let right = self.parse_multiplication()?;
+                left = Expression::BinaryOp {
+                    op: op.clone(),
+                    left: Box::new(left),
+                    right: Box::new(right),
+                };
+            } else {
+                break;
+            }
+        }
+        Ok(left)
+    }
+
+    fn parse_multiplication(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_unary()?;
+
+        while let Some(op) = self.peek() {
+            if op == "*" || op == "/" {
+                self.consume();
+                let right = self.parse_unary()?;
+                left = Expression::BinaryOp {
+                    op: op.clone(),
+                    left: Box::new(left),
+                    right: Box::new(right),
+                };
+            } else {
+                break;
+            }
+        }
+        Ok(left)
+    }
+
+    fn parse_unary(&mut self) -> Result<Expression, String> {
+        if let Some(op) = self.peek() {
+            if op == "!" || op == "-" {
+                self.consume();
+                let expression = self.parse_unary()?; // Recursive call for chained unary operators
+                let unary_op = Expression::UnaryOp {
+                    op: op.clone(),
+                    expression: Box::new(expression),
+                };
+                Ok(unary_op)
+            } else {
+                //If it's not a unary operator, fall through to primary
+                let primary = self.parse_primary()?;
+                Ok(primary)
+            }
+        } else {
+            Err("Expected unary operator or primary expression, but got EOF".to_string())
+        }
     }
 
     fn parse_primary(&mut self) -> Result<Expression, String> {
