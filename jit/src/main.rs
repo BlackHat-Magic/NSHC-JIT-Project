@@ -11,6 +11,7 @@ enum DataType {
     u32,
     i32,
     f32,
+    bool,
 }
 
 #[derive(Debug)]
@@ -23,6 +24,7 @@ enum Expression {
     Literalu32(u32),
     Literali32(i32),
     Literalf32(f32),
+    LiteralBool(bool),
     Variable(String),
     BinaryOp {
         op: String,
@@ -522,6 +524,14 @@ impl Parser {
 
     fn parse_primary(&mut self) -> Result<Expression, String> {
         match self.peek().as_deref() {
+            Some("true") => {
+                self.consume();
+                Ok(Expression::LiteralBool(true))
+            }
+            Some("false") => {
+                self.consume();
+                Ok(Expression::LiteralBool(false))
+            }
             Some(literal)
                 if literal.chars.all()(|c| c.is_digit(10))
                     || (literal.contains('.')
@@ -577,6 +587,13 @@ impl Parser {
                                 .parse::<f32>()
                                 .map(Expression::Literalf32)
                                 .map_err(|e| e.to_string());
+                        }
+                        DataType::bool => {
+                            if let Ok(val) = literal.parse::<bool>() {
+                                Ok(Expression::LiteralBool(val))
+                            } else {
+                                Err(format!("Unexpected type, expected boolean value"))
+                            }
                         }
                     }
                     .map_err(|e| {
