@@ -250,7 +250,7 @@ impl Parser {
                         self.consume();
                         Ok(Statement::Decrement { variable_name: ident.clone() })
                     }
-                    Some("-") | Some("!") => self.parse_unary_operation(ident.clone()),
+                    Some("==") | Some("!=") | Some("<") | Some(">") | Some("<=") | Some(">=") => self.parse_expression(ident.clone()),
                     Some("(") => self.parse_function_call(ident.clone()),
                     _ => Err(format!("Unexpected token after identifier: {:?}", parser_copy.peek())),
                 }
