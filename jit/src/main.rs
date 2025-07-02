@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use half::f16;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 enum DataType {
@@ -37,14 +37,16 @@ enum Expression {
         name: String,
         arguments: Vec<Expression>,
     },
-    FieldAccess { // TODO: implement
+    FieldAccess {
+        // TODO: implement
         expression: Box<Expression>,
         field_name: String,
     },
-    ArrayAccess { // TODO: implement
+    ArrayAccess {
+        // TODO: implement
         array: Box<Expression>,
         index: Box<Expression>,
-    }
+    },
     Comparison {
         op: String, // `==`, `!=`, `<`, `>`, `<=`, `>=`
         left: Box<Expression>,
@@ -56,9 +58,10 @@ enum Expression {
         right: Box<Expression>,
     },
     // cast might not be necessary; can be parsed as a function?
-    Cast { // TODO: implement
+    Cast {
+        // TODO: implement
         data_type: DataType,
-        expression: Box<Expression>
+        expression: Box<Expression>,
     },
 }
 
@@ -151,7 +154,7 @@ impl Parser {
     fn parse(&mut self) -> Result<Vec<TopLevel>, String> {
         let mut top_levels = Vec::new();
         while self.peek().is_some() {
-            if(self.peek() == Some(&"fn".to_string())) {
+            if (self.peek() == Some(&"fn".to_string())) {
                 top_levels.push(TopLevel::Function(self.parse_function_declaration()?));
             } else {
                 // TODO: Improve error
@@ -167,12 +170,12 @@ impl Parser {
         let name = self.consume().ok_or("Expected function name")?;
         self.expect("(")?;
         let mut parameters = Vec::new();
-        if(self.peek() != Some(&")".to_string())) {
+        if (self.peek() != Some(&")".to_string())) {
             loop {
                 let data_type = self.parse_data_type()?;
                 let variable_name = self.consume().ok_or("Expected parameter name")?;
                 parameters.push((data_type, variable_name));
-                if(self.peek() == Some(&",".to_string())) {
+                if (self.peek() == Some(&",".to_string())) {
                     self.consume();
                 } else {
                     break;
@@ -217,7 +220,7 @@ impl Parser {
 
     fn parse_block(&mut self) -> Result<Vec<Statement>, String> {
         let mut statements = Vec::new();
-        while(self.peek() != Some(&"}".to_string()) && Self.peek().is_some()) {
+        while (self.peek() != Some(&"}".to_string()) && Self.peek().is_some()) {
             statements.push(self.parse_statement()?);
         }
         Ok(statements)
@@ -225,7 +228,8 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.peek().as_deref() {
-            Some("bool") | Some("i8") | Some("u16") | Some("i16") | Some("f16") | Some("u32") | Some("i32") | Some("f32") => self.parse_declaration(),
+            Some("bool") | Some("i8") | Some("u16") | Some("i16") | Some("f16") | Some("u32")
+            | Some("i32") | Some("f32") => self.parse_declaration(),
             Some("if") => self.parse_if_statement(),
             Some("for") => self.parse_for_statement(),
             Some("while") => self.parse_while_statement(),
@@ -237,21 +241,28 @@ impl Parser {
                     tokens: self.tokens.clone(),
                     current: self.current,
                 };
-                parser_copy.consume() // consume identifier
+                parser_copy.consume(); // consume identifier
                 match parser_copy.peek().as_deref() {
                     Some("=") => self.parse_assignment(ident.clone()),
                     Some("++") => {
                         self.consume();
                         self.consume();
-                        Ok(Statement::Increment { variable_name: ident.clone() })
+                        Ok(Statement::Increment {
+                            variable_name: ident.clone(),
+                        })
                     }
                     Some("--") => {
                         self.consume();
                         self.consume();
-                        Ok(Statement::Decrement { variable_name: ident.clone() })
+                        Ok(Statement::Decrement {
+                            variable_name: ident.clone(),
+                        })
                     }
                     Some("(") => self.parse_function_call(ident.clone()),
-                    _ => Err(format!("Unexpected token after identifier: {:?}", parser_copy.peek())),
+                    _ => Err(format!(
+                        "Unexpected token after identifier: {:?}",
+                        parser_copy.peek()
+                    )),
                 }
             }
             None => Err("Expected statement, but got EOF".to_string()),
@@ -261,6 +272,7 @@ impl Parser {
 
     fn parse_declaration(&mut self) -> Result<Statement, String> {
         let data_type = self.parse_data_type()?;
+        self.expected_data_type = Some(data_type);
         let variable_name = self.consume().ok_or("Expected variable name")?;
         self.expect("=")?;
         let expression = self.parse_expression()?;
@@ -332,10 +344,7 @@ impl Parser {
         let body = self.parse_block()?;
         self.expect("}")?;
 
-        Ok(Statement::While {
-            condition,
-            body,
-        })
+        Ok(Statement::While { condition, body })
     }
 
     fn parse_for_statement(&mut self) -> Result<Statement, String> {
@@ -348,7 +357,7 @@ impl Parser {
         let increment = match self.parse_statement() {
             Ok(stmt) => Box::new(stmt),
             Err(e) => return Err(r),
-        }
+        };
         self.expect(")")?;
         self.expect("{")?;
         let body = self.parse_block()?;
@@ -374,11 +383,11 @@ impl Parser {
     fn parse_function_call(&mut self, name: String) -> Result<Statement, String> {
         self.expect("(")?;
         let mut arguments = Vec::new();
-        if(self.peek() != Some(&")".to_string())) {
+        if (self.peek() != Some(&")".to_string())) {
             loop {
                 let expression = self.parse_expression()?;
                 arguments.push(expression);
-                if(self.peek() == Some(&",".to_string())) {
+                if (self.peek() == Some(&",".to_string())) {
                     self.consume()?;
                 } else {
                     break;
@@ -513,52 +522,69 @@ impl Parser {
 
     fn parse_primary(&mut self) -> Result<Expression, String> {
         match self.peek().as_deref() {
-            Some(literal) if literal.chars.all()(|c| c.is_digit(10)) ||
-                (literal.contains('.') && literal.chars().filter(|c| *c == '.').count() == 1) => {
+            Some(literal)
+                if literal.chars.all()(|c| c.is_digit(10))
+                    || (literal.contains('.')
+                        && literal.chars().filter(|c| *c == '.').count() == 1) =>
+            {
                 if let Some(expected_type) = self.expected_data_type {
                     self.consume();
                     match expected_type {
                         DataType::u8 => {
-                            literal.parse::<u8>().map(
-                                Expression::Literalu8
-                            ).map_err(|e| e.to_string()),
+                            literal
+                                .parse::<u8>()
+                                .map(Expression::Literalu8)
+                                .map_err(|e| e.to_string());
                         }
                         DataType::i8 => {
-                            literal.parse::<i8>().map(
-                                Expression::Literali8
-                            ).map_err(|e| e.to_string()),
+                            literal
+                                .parse::<i8>()
+                                .map(Expression::Literali8)
+                                .map_err(|e| e.to_string());
                         }
                         DataType::u16 => {
-                            literal.parse::<u16>().map(
-                                Expression::Literalu16
-                            ).map_err(|e| e.to_string()),
+                            literal
+                                .parse::<u16>()
+                                .map(Expression::Literalu16)
+                                .map_err(|e| e.to_string());
                         }
                         DataType::i16 => {
-                            literal.parse::<i16>().map(
-                                Expression::Literali16
-                            ).map_err(|e| e.to_string()),
+                            literal
+                                .parse::<i16>()
+                                .map(Expression::Literali16)
+                                .map_err(|e| e.to_string());
                         }
                         DataType::f16 => {
-                            literal.parse::<f16>().map(
-                                Expression::Literalf16
-                            ).map_err(|e| e.to_string()),
+                            literal
+                                .parse::<f16>()
+                                .map(Expression::Literalf16)
+                                .map_err(|e| e.to_string());
                         }
                         DataType::u32 => {
-                            literal.parse::<u32>().map(
-                                Expression::Literalu32
-                            ).map_err(|e| e.to_string()),
+                            literal
+                                .parse::<u32>()
+                                .map(Expression::Literalu32)
+                                .map_err(|e| e.to_string());
                         }
                         DataType::i32 => {
-                            literal.parse::<i32>().map(
-                                Expression::Literali32
-                            ).map_err(|e| e.to_string()),
+                            literal
+                                .parse::<i32>()
+                                .map(Expression::Literali32)
+                                .map_err(|e| e.to_string());
                         }
                         DataType::f32 => {
-                            literal.parse::<f32>().map(
-                                Expression::Literalf32
-                            ).map_err(|e| e.to_string()),
+                            literal
+                                .parse::<f32>()
+                                .map(Expression::Literalf32)
+                                .map_err(|e| e.to_string());
                         }
-                    }.map_err(|e| format!("Invalid literal '{}' for type '{:?}': {}", literal, expected_type, e))
+                    }
+                    .map_err(|e| {
+                        format!(
+                            "Invalid literal '{}' for type '{:?}': {}",
+                            literal, expected_type, e
+                        )
+                    })
                 } else {
                     if let Ok(val) = literal.parse::<f32>() {
                         self.consume();
@@ -567,7 +593,10 @@ impl Parser {
                         self.consume();
                         Ok(Expression::Literali32(val))
                     } else {
-                        Err(format!("Numeric literal '{}' could not be automatically typed", literal))
+                        Err(format!(
+                            "Numeric literal '{}' could not be automatically typed",
+                            literal
+                        ))
                     }
                 }
             }
@@ -592,5 +621,4 @@ fn main() {
     let mut parser = Parser::new(tokens);
     let program = parser.parse()?;
     println!("{:?}", program);
-
 }
