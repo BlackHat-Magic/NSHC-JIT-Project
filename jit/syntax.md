@@ -38,7 +38,7 @@ if, else, elif:
 ```
 if(some_truth_value) {
     do_domething();
-} elif (some_other_truth_value) {
+} elif(some_other_truth_value) {
     do_something_else();
 } else {
     the_default_action();
@@ -47,7 +47,7 @@ if(some_truth_value) {
 
 for, while:
 ```
-for (u32 i = 0; i < some_number; i++) {
+for(u32 i = 0; i < some_number; i++) {
     do_something();
 }
 
@@ -59,3 +59,4 @@ while(some_truth_value) {
 
 error handling is...
 Maybe errors as values?
+Worry about it later
