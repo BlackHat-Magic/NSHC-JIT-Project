@@ -50,7 +50,7 @@ enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
-    LogicalOp { // TODO: implement
+    LogicalOp {
         op: String, // `&&`, `||`
         left: Box<Expression>,
         right: Box<Expression>,
@@ -422,7 +422,13 @@ impl Parser {
                     right: Box::new(right),
                 };
             } else if op == "&&" || op == "||" {
-                // ...
+                self.consume();
+                let right = self.parse_primary()?;
+                left = Expression::LogicalOp {
+                    op: op.clone(),
+                    left: Box::new(left),
+                    right: Box::new(right),
+                };
             } else {
                 break;
             }
