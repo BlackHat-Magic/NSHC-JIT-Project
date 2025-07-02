@@ -28,8 +28,38 @@ enum Expression {
         op: String,
         left: Box<Expression>,
         right: Box<Expression>,
+    },
+    UnaryOp { // TODO: implement
+        op: String, // `-` or `!`
+        expression: Box<Expression>,
+    },
+    FunctionCall {
+        name: String,
+        arguments: Vec<Expression>,
+    },
+    FieldAccess { // TODO: implement
+        expression: Box<Expression>,
+        field_name: String,
+    },
+    ArrayAccess { // TODO: implement
+        array: Box<Expression>,
+        index: Box<Expression>,
     }
-    // TODO: add remaining expressions
+    Comparison { // TODO: implement
+        op: String, // `==`, `!=`, `<`, `>`, `<=`, `>=`
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    LogicalOp { // TODO: implement
+        op: String,
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    // cast might not be necessary; can be parsed as a function?
+    Cast { // TODO: implement
+        data_type: DataType,
+        expression: Box<Expression>
+    },
 }
 
 #[derive(Debug)]
