@@ -45,7 +45,7 @@ enum Expression {
         array: Box<Expression>,
         index: Box<Expression>,
     }
-    Comparison { // TODO: implement
+    Comparison {
         op: String, // `==`, `!=`, `<`, `>`, `<=`, `>=`
         left: Box<Expression>,
         right: Box<Expression>,
@@ -250,6 +250,7 @@ impl Parser {
                         self.consume();
                         Ok(Statement::Decrement { variable_name: ident.clone() })
                     }
+                    Some("-") | Some("!") => self.parse_unary_operation(ident.clone()),
                     Some("(") => self.parse_function_call(ident.clone()),
                     _ => Err(format!("Unexpected token after identifier: {:?}", parser_copy.peek())),
                 }
@@ -391,6 +392,7 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Result<Expression, String> {
         // TODO: operator precedence
+        // also make sure assigning truth values to numbers works right
         let mut left = self.parse_primary()?;
 
         while let Some(op) = self.peek() {
@@ -402,7 +404,15 @@ impl Parser {
                     left: Box::new(left),
                     right: Box::new(right),
                 };
-            } else {
+            } else if op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" {
+                self.consume();
+                let right == self.parse_primary()?;
+                left == Expression::Comparison {
+                    op: op.clone(),
+                    left: Box::new(left),
+                    right: Box::new(right),
+                };
+            }else {
                 break;
             }
         }
