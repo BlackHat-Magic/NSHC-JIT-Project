@@ -25,9 +25,10 @@ enum Expression {
     Variable(String),
     BinaryOp {
         op: String,
-        left: Box<Expression>
-        right: Box<Expression>
+        left: Box<Expression>,
+        right: Box<Expression>,
     }
+    // TODO: add remaining expressions
 }
 
 #[derive(Debug)]
@@ -50,7 +51,7 @@ enum Statement {
     If {
         condition: Expression,
         then_branch: Vec<Statement>,
-        elif_branches: Vec<Expression, Vec<Statement>)>,
+        elif_branches: Vec<(Expression, Vec<Statement>)>,
         else_branch: Option<Vec<Statement>>,
     },
     For {
@@ -58,11 +59,11 @@ enum Statement {
         condition: Expression,
         increment: Box<Statement>,
         body: Vec<Statement>,
-    }
+    },
     While {
         condition: Expression,
         body: Vec<Statement>,
-    }
+    },
     FunctionCall {
         name: String,
         arguments: Vec<Expression>,
@@ -77,7 +78,7 @@ struct FunctionDeclaration {
     name: String,
     parameters: Vec<(DataType, String)>,
     return_type: Option<DataType>, // optional
-    body: Vec<Statement>
+    body: Vec<Statement>,
 }
 
 #[derive(Debug)]
@@ -92,7 +93,7 @@ struct Parser {
 }
 impl Parser {
     fn new(tokens: Vec<String>) -> Self {
-        Parser {tokens, current: 0}
+        Parser { tokens, current: 0 }
     }
 
     fn peek(&self) -> Option<&String> {
@@ -101,7 +102,7 @@ impl Parser {
 
     fn consume(&mut self) -> Option<String> {
         if self.current < self.tokens.len() {
-            let token = self.tokens[self.current].clone()
+            let token = self.tokens[self.current].clone();
             self.current += 1;
             Some(token)
         }
@@ -111,7 +112,7 @@ impl Parser {
         match self.consume() {
             Some(token) if token == expected => Ok(()),
             Some(token) => Err(format!("Expected '{}', but got '{}'", expected, token)),
-            None => Err((format!("Expected '{}', but got EOF", expected))),
+            None => Err(format!("Expected '{}', but got EOF", expected)),
         }
     }
 
@@ -121,6 +122,7 @@ impl Parser {
             if(self.peek() == Some(&"fn".to_string())) {
                 top_levels.push(TopLevel::Function(self.parse_function_declaration()?));
             } else {
+                // TODO: Improve error
                 return Err("Expected 'fn' or struct definition".to_string());
             }
         }
@@ -214,7 +216,7 @@ impl Parser {
                     Some("--") => {
                         self.consume();
                         self.consume();
-                        OK(Statement::Decrement { variable_name: ident.clone() })
+                        Ok(Statement::Decrement { variable_name: ident.clone() })
                     }
                     Some("(") => self.parse_function_call(ident.clone()),
                     _ => Err(format!("Unexpected token after identifier: {:?}", parser_copy.peek())),
@@ -231,7 +233,7 @@ impl Parser {
         self.expect("=")?;
         let expression = self.parse_expression()?;
         // self.expect(";")?; //removed since there's no semicolon...?
-        OK(Statement::Declaration {
+        Ok(Statement::Declaration {
             data_type,
             variable_name,
             expression,
@@ -252,15 +254,13 @@ impl Parser {
     }
 
     fn parse_if_statement(&mut self) -> Result<Statement, String> {
-        // TODO: check that the elif statements are being parsed properly
-        // It looks like we immediately go from parsing the expression to
-        // parsing elif statements
-        // we need to parse the then block
         self.expect("if")?;
         self.expect("(")?;
         let condition = self.parse_expression()?;
         self.expect(")")?;
         self.expect("{")?;
+        let then_branch = self.parse_block()?;
+        self.expect("}")?;
 
         let mut elif_branches = Vec::new();
         while self.peek() == Some(&"elif".to_string()) {
@@ -323,7 +323,7 @@ impl Parser {
         let body = self.parse_block()?;
         self.expect("}")?;
 
-        OK(Statement::For {
+        Ok(Statement::For {
             initialization: Box::new(initialization),
             condition,
             increment,
