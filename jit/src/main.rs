@@ -250,7 +250,7 @@ impl Parser {
                         self.consume();
                         Ok(Statement::Decrement { variable_name: ident.clone() })
                     }
-                    Some("==") | Some("!=") | Some("<") | Some(">") | Some("<=") | Some(">=") => self.parse_expression(ident.clone()),
+                    Some("==") | Some("!=") | Some("<") | Some(">") | Some("<=") | Some(">=") | Some("-") | Some("!") => self.parse_expression(ident.clone()),
                     Some("(") => self.parse_function_call(ident.clone()),
                     _ => Err(format!("Unexpected token after identifier: {:?}", parser_copy.peek())),
                 }
@@ -406,13 +406,13 @@ impl Parser {
                 };
             } else if op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" {
                 self.consume();
-                let right == self.parse_primary()?;
-                left == Expression::Comparison {
+                let right = self.parse_primary()?;
+                left = Expression::Comparison {
                     op: op.clone(),
                     left: Box::new(left),
                     right: Box::new(right),
                 };
-            }else {
+            } else {
                 break;
             }
         }
