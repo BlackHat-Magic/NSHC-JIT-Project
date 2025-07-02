@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use half::f16;
 
 #[derive(Debug)]
 enum DataType {
@@ -90,6 +91,7 @@ enum TopLevel {
 struct Parser {
     tokens: Vec<String>,
     current: usize,
+    expected_data_type: Option<DataType>,
 }
 impl Parser {
     fn new(tokens: Vec<String>) -> Self {
@@ -232,6 +234,7 @@ impl Parser {
         let variable_name = self.consume().ok_or("Expected variable name")?;
         self.expect("=")?;
         let expression = self.parse_expression()?;
+        self.expected_data_type = None;
         // self.expect(";")?; //removed since there's no semicolon...?
         Ok(Statement::Declaration {
             data_type,
@@ -378,51 +381,71 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Result<Expression, String> {
-        // TODO: properly adapt to accept f16, f32, etc.
         match self.peek().as_deref() {
-            Some(literal) if literal.chars().all(|c| c.is_digit(10)) => {
-                if let Ok(val) = literal.parse::<u8>() {
+            Some(literal) if literal.chars.all()(|c| c.is_digit(10)) ||
+                (literal.contains('.') && literal.chars().filter(|c| *c == '.').count() == 1) => {
+                if let Some(expected_type) = self.expected_data_type {
                     self.consume();
-                    Ok(Expression::Literalu8(val))
-                } else if let Ok(val) = literal.parse::<i8>() {
-                    self.consume();
-                    Ok(Expression::Literali8(val))
-                } else if let Ok(val) = literal.parse::<u16>() {
-                    self.consume();
-                    Ok(Expression::Literalu16(val))
-                } else if let Ok(val) = literal.parse::<i16>() {
-                    self.consume();
-                    Ok(Expression::Literali16(val))
-                } else if let Ok(val) = literal.parse::<f16>() {
-                    self.consume();
-                    Ok(Expression::Literalf16(val))
-                } else if let Ok(val) = literal.parse::<u32>() {
-                    self.consume();
-                    Ok(Expression::Literalu32(val))
-                } else if let Ok(val) = literal.parse::<i32>() {
-                    self.consume();
-                    Ok(Expression::Literali32(val))
-                } else if let Ok(val) = literal.parse::<f32>() {
-                    self.consume();
-                    Ok(Expression::Literalf32(val))
+                    match expected_type {
+                        DataType::u8 => {
+                            literal.parse::<u8>().map(
+                                Expression::Literalu8
+                            ).map_err(|e| e.to_string()),
+                        }
+                        DataType::i8 => {
+                            literal.parse::<i8>().map(
+                                Expression::Literali8
+                            ).map_err(|e| e.to_string()),
+                        }
+                        DataType::u16 => {
+                            literal.parse::<u16>().map(
+                                Expression::Literalu16
+                            ).map_err(|e| e.to_string()),
+                        }
+                        DataType::i16 => {
+                            literal.parse::<i16>().map(
+                                Expression::Literali16
+                            ).map_err(|e| e.to_string()),
+                        }
+                        DataType::f16 => {
+                            literal.parse::<f16>().map(
+                                Expression::Literalf16
+                            ).map_err(|e| e.to_string()),
+                        }
+                        DataType::u32 => {
+                            literal.parse::<u32>().map(
+                                Expression::Literalu32
+                            ).map_err(|e| e.to_string()),
+                        }
+                        DataType::i32 => {
+                            literal.parse::<i32>().map(
+                                Expression::Literali32
+                            ).map_err(|e| e.to_string()),
+                        }
+                        DataType::f32 => {
+                            literal.parse::<f32>().map(
+                                Expression::Literalf32
+                            ).map_err(|e| e.to_string()),
+                        }
+                    }.map_err(|e| format!("Invalid literal '{}' for type '{:?}': {}", literal, expected_type, e))
                 } else {
-                    Err(format!("Numeric literal too large: {}", literal))
+                    if let Ok(val) = literal.parse::<f32>() {
+                        self.consume();
+                        Ok(Expression::Literalf32(val))
+                    } else if let Ok(val) = literal.parse::<i32>() {
+                        self.consume();
+                        Ok(Expression::Literali32(val))
+                    } else {
+                        Err(format!("Numeric literal '{}' could not be automatically typed", literal))
+                    }
                 }
             }
-            Some(literal) if literal.contains('.') && literal.chars().filter(|c| *c == '.').count() == 1 => {
-                if(let Ok(val) = literal.parse::<f32>()) {
-                    self.consume();
-                    Ok(Expression::Literalf32(val))
-                } else {
-                    Err(format!("Invalid floating point literal: {}", literal))
-                }
-            }
-            Some(ident) of literal.chars().all(|c| c.is_alphabetic() || c == '_') => {
+            Some(ident) if ident.chars().all(|c| c.is_alphabetic() || c == '_') => {
                 self.consume();
-                Ok(Expression::Variable)
+                Ok(Expression::Variable(ident.clone()))
             }
             Some("(") => {
-                self.consume(); // consume (
+                self.consume();
                 let expression = self.parse_expression()?;
                 self.expect(")")?;
                 Ok(expression)
