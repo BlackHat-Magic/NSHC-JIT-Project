@@ -241,9 +241,6 @@ impl Parser {
     }
 
     fn parse_assignment(&mut self, variable_name: String) -> Result<Statement, String> {
-        // TODO: check that we don't need to consume the token first
-        // I'm pretty sure that the `current` value would still point to the variable name
-        // but we're expecting an assignment operator
         self.expect("=")?;
         let expression = self.parse_expression()?;
         // self.expect(";")?;
@@ -341,9 +338,6 @@ impl Parser {
     }
 
     fn parse_function_call(&mut self, name: String) -> Result<Statement, String> {
-        // TODO: check that we don't need to consume the token first
-        // I'm pretty sure that the `current` value would still point to the variable name
-        // but we're expecting an assignment operator
         self.expect("(")?;
         let mut arguments = Vec::new();
         if(self.peek() != Some(&")".to_string())) {
