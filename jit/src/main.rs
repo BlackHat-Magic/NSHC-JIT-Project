@@ -29,7 +29,7 @@ enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
-    UnaryOp { // TODO: implement
+    UnaryOp {
         op: String, // `-` or `!`
         expression: Box<Expression>,
     },
@@ -391,8 +391,18 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, String> {
-        // TODO: operator precedence
-        // also make sure assigning truth values to numbers works right
+        // TODO: operator precedence and associativity
+        // also make sure assigning truth values to non-bools works right
+        if(self.peek() == "!" || self.peek() == "-") {
+            let op = self.consume();
+            let expression = self.parse_expression()?;
+            let unary_op = Expression::UnaryOp {
+                op: op.clone(),
+                expression: Box::new(expression),
+            };
+            Ok(unary_op)
+        }
+
         let mut left = self.parse_primary()?;
 
         while let Some(op) = self.peek() {
