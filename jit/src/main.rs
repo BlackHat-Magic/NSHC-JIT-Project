@@ -138,6 +138,7 @@ impl Parser {
     }
 
     fn peek(&self) -> Option<&String> {
+        // Some(self.tokens[self.current].clone())
         self.tokens.get(self.current)
     }
 
@@ -155,7 +156,7 @@ impl Parser {
         match self.consume() {
             Some(token) if token == expected => Ok(()),
             Some(token) => Err(format!("Expected '{}', but got '{}'", expected, token)),
-            None => Err(format!("Expected '{}', but got EOF".to_string(), expected)),
+            None => Err(format!("Expected '{}', but got EOF", expected)),
         }
     }
 
@@ -212,7 +213,7 @@ impl Parser {
 
     fn parse_data_type(&mut self) -> Result<DataType, String> {
         match self.consume().as_deref() {
-            Some("Bool") => Ok(DataType::Bool),
+            Some("bool") => Ok(DataType::Bool),
             Some("u8") => Ok(DataType::U8),
             Some("i8") => Ok(DataType::I8),
             Some("u16") => Ok(DataType::U16),
@@ -235,8 +236,10 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
-        match self.peek().as_deref() {
+        let peeked = self.peek().cloned();
+        match peeked.as_deref() {
             Some("bool") => self.parse_declaration(),
+            Some("u8") => self.parse_declaration(),
             Some("i8") => self.parse_declaration(),
             Some("u16") => self.parse_declaration(),
             Some("i16") => self.parse_declaration(),
@@ -256,24 +259,24 @@ impl Parser {
                     current: self.current,
                     expected_data_type: self.expected_data_type,
                 };
-                parser_copy.consume(); // consume identifier
-                match parser_copy.peek().as_deref() {
-                    Some("=") => self.parse_assignment(ident.clone()),
+                parser_copy.consume();
+                match parser_copy.peek().as_ref().map(|s| s.as_str()) {
+                    Some("=") => self.parse_assignment(ident.to_string().clone()),
                     Some("++") => {
                         self.consume();
                         self.consume();
                         Ok(Statement::Increment {
-                            variable_name: ident.clone(),
+                            variable_name: ident.to_string().clone(),
                         })
                     }
                     Some("--") => {
                         self.consume();
                         self.consume();
                         Ok(Statement::Decrement {
-                            variable_name: ident.clone(),
+                            variable_name: ident.to_string().clone(),
                         })
                     }
-                    Some("(") => self.parse_function_call(ident.clone()),
+                    Some("(") => self.parse_function_call(ident.to_string().clone()),
                     _ => Err(format!(
                         "Unexpected token after identifier: {:?}",
                         parser_copy.peek()
@@ -281,7 +284,6 @@ impl Parser {
                 }
             }
             None => Err("Expected statement, but got EOF".to_string()),
-            _ => Err(format!("Unexpected token {:?}", self.peek())),
         }
     }
 
@@ -416,8 +418,7 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Result<Expression, String> {
         // Start with the lowest precedence: logical operators
-        let mut left = self.parse_logical_or()?;
-        Ok(left)
+        Ok(self.parse_logical_or()?)
     }
 
     fn parse_logical_or(&mut self) -> Result<Expression, String> {
@@ -472,7 +473,7 @@ impl Parser {
         let mut ops = Vec::new();
         while let Some(op) = self.peek() {
             if op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" {
-                ops.push(op);
+                ops.push(op.clone());
                 self.consume();
             } else {
                 break;
@@ -492,23 +493,25 @@ impl Parser {
     fn parse_addition(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_multiplication()?;
 
-        let mut ops = Vec::new();
-        while let Some(op) = self.peek() {
-            if op == "+" || op == "-" {
-                ops.push(op);
-                self.consume();
+        loop {
+            if let Some(op) = self.peek().as_deref() {
+                if op == "+" || op == "-" {
+                    // The immutable borrow is gone, so we can now borrow mutably.
+                    let consumed_op = self.consume().unwrap(); // We know it's Some
+                    let right = self.parse_multiplication()?;
+                    left = Expression::BinaryOp {
+                        op: consumed_op,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    };
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
         }
-        for op in ops {
-            let right = self.parse_multiplication()?;
-            left = Expression::BinaryOp {
-                op: op.clone(),
-                left: Box::new(left),
-                right: Box::new(right),
-            };
-        }
+
         Ok(left)
     }
 
@@ -518,7 +521,7 @@ impl Parser {
         let mut ops = Vec::new();
         while let Some(op) = self.peek() {
             if op == "*" || op == "/" {
-                ops.push(op);
+                ops.push(op.clone());
                 self.consume();
             } else {
                 break;
@@ -536,27 +539,24 @@ impl Parser {
     }
 
     fn parse_unary(&mut self) -> Result<Expression, String> {
-        if let Some(op) = self.peek() {
+        // If next token is a '!' or '-', consume it, recurse, return a UnaryOp.
+        if let Some(op) = self.peek().map(String::as_str) {
             if op == "!" || op == "-" {
-                self.consume();
-                let expression = self.parse_unary()?; // Recursive call for chained unary operators
-                let unary_op = Expression::UnaryOp {
-                    op: op.clone(),
-                    expression: Box::new(expression),
-                };
-                Ok(unary_op)
-            } else {
-                //If it's not a unary operator, fall through to primary
-                let primary = self.parse_primary()?;
-                Ok(primary)
+                let consumed_op = self.consume().unwrap();
+                let expr = self.parse_unary()?;
+                return Ok(Expression::UnaryOp {
+                    op: consumed_op,
+                    expression: Box::new(expr),
+                });
             }
-        } else {
-            Err("Expected unary operator or primary expression, but got EOF".to_string())
         }
+        // Otherwise, it's not a unary op, so parse a primary.
+        self.parse_primary()
     }
 
     fn parse_primary(&mut self) -> Result<Expression, String> {
-        match self.peek().as_deref() {
+        let peeked = self.peek().cloned();
+        match peeked.as_deref() {
             Some("true") => {
                 self.consume();
                 Ok(Expression::LiteralBool(true))
@@ -566,70 +566,57 @@ impl Parser {
                 Ok(Expression::LiteralBool(false))
             }
             Some(literal)
-                if literal.chars.all()(|c| c.is_digit(10))
+                if literal.chars().all(|c| c.is_digit(10))
                     || (literal.contains('.')
                         && literal.chars().filter(|c| *c == '.').count() == 1) =>
             {
                 if let Some(expected_type) = self.expected_data_type {
                     self.consume();
-                    match expected_type {
-                        DataType::U8 => {
-                            literal
-                                .parse::<u8>()
-                                .map(Expression::LiteralU8)
-                                .map_err(|e| e.to_string());
-                        }
-                        DataType::I8 => {
-                            literal
-                                .parse::<i8>()
-                                .map(Expression::LiteralI8)
-                                .map_err(|e| e.to_string());
-                        }
-                        DataType::U16 => {
-                            literal
-                                .parse::<u16>()
-                                .map(Expression::LiteralU16)
-                                .map_err(|e| e.to_string());
-                        }
-                        DataType::I16 => {
-                            literal
-                                .parse::<i16>()
-                                .map(Expression::LiteralI16)
-                                .map_err(|e| e.to_string());
-                        }
-                        DataType::F16 => {
-                            literal
-                                .parse::<f16>()
-                                .map(Expression::LiteralF16)
-                                .map_err(|e| e.to_string());
-                        }
-                        DataType::U32 => {
-                            literal
-                                .parse::<u32>()
-                                .map(Expression::LiteralU32)
-                                .map_err(|e| e.to_string());
-                        }
-                        DataType::I32 => {
-                            literal
-                                .parse::<i32>()
-                                .map(Expression::LiteralI32)
-                                .map_err(|e| e.to_string());
-                        }
-                        DataType::F32 => {
-                            literal
-                                .parse::<f32>()
-                                .map(Expression::LiteralF32)
-                                .map_err(|e| e.to_string());
-                        }
+                    let result = match expected_type {
+                        DataType::U8 => literal
+                            .parse::<u8>()
+                            .map(Expression::LiteralU8)
+                            .map_err(|e| e.to_string()),
+                        DataType::I8 => literal
+                            .parse::<i8>()
+                            .map(Expression::LiteralI8)
+                            .map_err(|e| e.to_string()),
+                        DataType::U16 => literal
+                            .parse::<u16>()
+                            .map(Expression::LiteralU16)
+                            .map_err(|e| e.to_string()),
+                        DataType::I16 => literal
+                            .parse::<i16>()
+                            .map(Expression::LiteralI16)
+                            .map_err(|e| e.to_string()),
+                        DataType::F16 => literal
+                            .parse::<f16>()
+                            .map(Expression::LiteralF16)
+                            .map_err(|e| e.to_string()),
+                        DataType::U32 => literal
+                            .parse::<u32>()
+                            .map(Expression::LiteralU32)
+                            .map_err(|e| e.to_string()),
+                        DataType::I32 => literal
+                            .parse::<i32>()
+                            .map(Expression::LiteralI32)
+                            .map_err(|e| e.to_string()),
+                        DataType::F32 => literal
+                            .parse::<f32>()
+                            .map(Expression::LiteralF32)
+                            .map_err(|e| e.to_string()),
                         DataType::Bool => {
-                            if let Ok(val) = literal.parse::<bool>() {
-                                Ok(Expression::LiteralBool(val))
+                            // This arm was already correct
+                            if literal == "true" {
+                                Ok(Expression::LiteralBool(true))
+                            } else if literal == "false" {
+                                Ok(Expression::LiteralBool(false))
                             } else {
-                                Err(format!("Unexpected type, expected boolean value"))
+                                Err(format!("'{}' is not a valid boolean value", literal))
                             }
                         }
-                    }
-                    .map_err(|e| {
+                    };
+                    result.map_err(|e| {
                         format!(
                             "Invalid literal '{}' for type '{:?}': {}",
                             literal, expected_type, e
@@ -650,9 +637,17 @@ impl Parser {
                     }
                 }
             }
-            Some(ident) if ident.chars().all(|c| c.is_alphabetic() || c == '_') => {
-                self.consume();
-                Ok(Expression::Variable(ident.clone()))
+            Some(ident) => {
+                let mut chars = ident.chars();
+                if let Some(first) = chars.next() {
+                    if (first.is_alphabetic() || first == '_')
+                        && chars.all(|c| c.is_alphanumeric() || c == '_')
+                    {
+                        self.consume();
+                        return Ok(Expression::Variable(ident.to_string()));
+                    }
+                }
+                Err(format!("Unexpected token: {}", ident))
             }
             Some("(") => {
                 self.consume();
@@ -692,6 +687,6 @@ fn main() {
         "}".to_string(),
     ];
     let mut parser = Parser::new(tokens);
-    let program = parser.parse()?;
+    let program = parser.parse();
     println!("{:?}", program);
 }
