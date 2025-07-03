@@ -1,29 +1,28 @@
 use half::f16;
-use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum DataType {
-    u8,
-    i8,
-    u16,
-    i16,
-    f16,
-    u32,
-    i32,
-    f32,
-    bool,
+    U8,
+    I8,
+    U16,
+    I16,
+    F16,
+    U32,
+    I32,
+    F32,
+    Bool,
 }
 
 #[derive(Debug)]
 enum Expression {
-    Literalu8(u8),
-    Literali8(i8),
-    Literalu16(u16),
-    Literali16(i16),
-    Literalf16(f16),
-    Literalu32(u32),
-    Literali32(i32),
-    Literalf32(f32),
+    LiteralU8(u8),
+    LiteralI8(i8),
+    LiteralU16(u16),
+    LiteralI16(i16),
+    LiteralF16(f16),
+    LiteralU32(u32),
+    LiteralI32(i32),
+    LiteralF32(f32),
     LiteralBool(bool),
     Variable(String),
     BinaryOp {
@@ -123,6 +122,7 @@ enum TopLevel {
     // include structs in the future
 }
 
+#[derive(Debug)]
 struct Parser {
     tokens: Vec<String>,
     current: usize,
@@ -130,7 +130,11 @@ struct Parser {
 }
 impl Parser {
     fn new(tokens: Vec<String>) -> Self {
-        Parser { tokens, current: 0 }
+        Parser {
+            tokens,
+            current: 0,
+            expected_data_type: None,
+        }
     }
 
     fn peek(&self) -> Option<&String> {
@@ -142,6 +146,8 @@ impl Parser {
             let token = self.tokens[self.current].clone();
             self.current += 1;
             Some(token)
+        } else {
+            None
         }
     }
 
@@ -149,14 +155,14 @@ impl Parser {
         match self.consume() {
             Some(token) if token == expected => Ok(()),
             Some(token) => Err(format!("Expected '{}', but got '{}'", expected, token)),
-            None => Err(format!("Expected '{}', but got EOF", expected)),
+            None => Err(format!("Expected '{}', but got EOF".to_string(), expected)),
         }
     }
 
     fn parse(&mut self) -> Result<Vec<TopLevel>, String> {
         let mut top_levels = Vec::new();
         while self.peek().is_some() {
-            if (self.peek() == Some(&"fn".to_string())) {
+            if self.peek() == Some(&"fn".to_string()) {
                 top_levels.push(TopLevel::Function(self.parse_function_declaration()?));
             } else {
                 // TODO: Improve error
@@ -172,12 +178,12 @@ impl Parser {
         let name = self.consume().ok_or("Expected function name")?;
         self.expect("(")?;
         let mut parameters = Vec::new();
-        if (self.peek() != Some(&")".to_string())) {
+        if self.peek() != Some(&")".to_string()) {
             loop {
                 let data_type = self.parse_data_type()?;
                 let variable_name = self.consume().ok_or("Expected parameter name")?;
                 parameters.push((data_type, variable_name));
-                if (self.peek() == Some(&",".to_string())) {
+                if self.peek() == Some(&",".to_string()) {
                     self.consume();
                 } else {
                     break;
@@ -186,7 +192,7 @@ impl Parser {
         }
         self.expect(")")?;
         let return_type = if self.peek() == Some(&"->".to_string()) {
-            self.consume()?;
+            self.consume();
             Some(self.parse_data_type()?)
         } else {
             None
@@ -206,15 +212,15 @@ impl Parser {
 
     fn parse_data_type(&mut self) -> Result<DataType, String> {
         match self.consume().as_deref() {
-            Some("bool") => Ok(DataType::bool),
-            Some("u8") => Ok(DataType::u8),
-            Some("i8") => Ok(DataType::i8),
-            Some("u16") => Ok(DataType::u16),
-            Some("i16") => Ok(DataType::i16),
-            Some("f16") => Ok(DataType::f16),
-            Some("u32") => Ok(DataType::u32),
-            Some("i32") => Ok(DataType::i32),
-            Some("f32") => Ok(DataType::f32),
+            Some("Bool") => Ok(DataType::Bool),
+            Some("u8") => Ok(DataType::U8),
+            Some("i8") => Ok(DataType::I8),
+            Some("u16") => Ok(DataType::U16),
+            Some("i16") => Ok(DataType::I16),
+            Some("f16") => Ok(DataType::F16),
+            Some("u32") => Ok(DataType::U32),
+            Some("i32") => Ok(DataType::I32),
+            Some("f32") => Ok(DataType::F32),
             Some(other) => Err(format!("Invalid data type: {}", other)),
             None => Err("Expected data type, but got EOF".to_string()),
         }
@@ -222,7 +228,7 @@ impl Parser {
 
     fn parse_block(&mut self) -> Result<Vec<Statement>, String> {
         let mut statements = Vec::new();
-        while (self.peek() != Some(&"}".to_string()) && Self.peek().is_some()) {
+        while self.peek() != Some(&"}".to_string()) && self.peek().is_some() {
             statements.push(self.parse_statement()?);
         }
         Ok(statements)
@@ -230,8 +236,14 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.peek().as_deref() {
-            Some("bool") | Some("i8") | Some("u16") | Some("i16") | Some("f16") | Some("u32")
-            | Some("i32") | Some("f32") => self.parse_declaration(),
+            Some("bool") => self.parse_declaration(),
+            Some("i8") => self.parse_declaration(),
+            Some("u16") => self.parse_declaration(),
+            Some("i16") => self.parse_declaration(),
+            Some("f16") => self.parse_declaration(),
+            Some("u32") => self.parse_declaration(),
+            Some("i32") => self.parse_declaration(),
+            Some("f32") => self.parse_declaration(),
             Some("if") => self.parse_if_statement(),
             Some("for") => self.parse_for_statement(),
             Some("while") => self.parse_while_statement(),
@@ -242,6 +254,7 @@ impl Parser {
                 let mut parser_copy = Parser {
                     tokens: self.tokens.clone(),
                     current: self.current,
+                    expected_data_type: self.expected_data_type,
                 };
                 parser_copy.consume(); // consume identifier
                 match parser_copy.peek().as_deref() {
@@ -309,7 +322,7 @@ impl Parser {
 
         let mut elif_branches = Vec::new();
         while self.peek() == Some(&"elif".to_string()) {
-            self.consume()?;
+            self.consume();
             self.expect("(")?;
             let condition = self.parse_expression()?;
             self.expect(")")?;
@@ -320,7 +333,7 @@ impl Parser {
         }
 
         let else_branch = if self.peek() == Some(&"else".to_string()) {
-            self.consume()?;
+            self.consume();
             self.expect("{")?;
             let else_branch = self.parse_block()?;
             self.expect("}")?;
@@ -358,7 +371,7 @@ impl Parser {
         // self.expect(";");
         let increment = match self.parse_statement() {
             Ok(stmt) => Box::new(stmt),
-            Err(e) => return Err(r),
+            Err(e) => return Err(e),
         };
         self.expect(")")?;
         self.expect("{")?;
@@ -385,12 +398,12 @@ impl Parser {
     fn parse_function_call(&mut self, name: String) -> Result<Statement, String> {
         self.expect("(")?;
         let mut arguments = Vec::new();
-        if (self.peek() != Some(&")".to_string())) {
+        if self.peek() != Some(&")".to_string()) {
             loop {
                 let expression = self.parse_expression()?;
                 arguments.push(expression);
-                if (self.peek() == Some(&",".to_string())) {
-                    self.consume()?;
+                if self.peek() == Some(&",".to_string()) {
+                    self.consume();
                 } else {
                     break;
                 }
@@ -410,17 +423,21 @@ impl Parser {
     fn parse_logical_or(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_logical_and()?;
 
+        let mut ops = Vec::new();
         while let Some(op) = self.peek() {
             if op == "||" {
+                ops.push(op.clone());
                 self.consume();
-                let right = self.parse_logical_and()?;
-                left = Expression::LogicalOp {
-                    op: op.clone(),
-                    left: Box::new(left),
-                    right: Box::new(right),
-                };
             } else {
                 break;
+            }
+        }
+        for op in ops {
+            let right = self.parse_logical_and()?;
+            left = Expression::LogicalOp {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
             }
         }
         Ok(left)
@@ -429,18 +446,22 @@ impl Parser {
     fn parse_logical_and(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_comparison()?;
 
+        let mut ops = Vec::new();
         while let Some(op) = self.peek() {
             if op == "&&" {
+                ops.push(op.clone());
                 self.consume();
-                let right = self.parse_comparison()?;
-                left = Expression::LogicalOp {
-                    op: op.clone(),
-                    left: Box::new(left),
-                    right: Box::new(right),
-                };
             } else {
                 break;
             }
+        }
+        for op in ops {
+            let right = self.parse_comparison()?;
+            left = Expression::LogicalOp {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
@@ -448,18 +469,22 @@ impl Parser {
     fn parse_comparison(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_addition()?;
 
+        let mut ops = Vec::new();
         while let Some(op) = self.peek() {
             if op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" {
+                ops.push(op);
                 self.consume();
-                let right = self.parse_addition()?;
-                left = Expression::Comparison {
-                    op: op.clone(),
-                    left: Box::new(left),
-                    right: Box::new(right),
-                };
             } else {
                 break;
             }
+        }
+        for op in ops {
+            let right = self.parse_addition()?;
+            left = Expression::Comparison {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
@@ -467,18 +492,22 @@ impl Parser {
     fn parse_addition(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_multiplication()?;
 
+        let mut ops = Vec::new();
         while let Some(op) = self.peek() {
             if op == "+" || op == "-" {
+                ops.push(op);
                 self.consume();
-                let right = self.parse_multiplication()?;
-                left = Expression::BinaryOp {
-                    op: op.clone(),
-                    left: Box::new(left),
-                    right: Box::new(right),
-                };
             } else {
                 break;
             }
+        }
+        for op in ops {
+            let right = self.parse_multiplication()?;
+            left = Expression::BinaryOp {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
@@ -486,18 +515,22 @@ impl Parser {
     fn parse_multiplication(&mut self) -> Result<Expression, String> {
         let mut left = self.parse_unary()?;
 
+        let mut ops = Vec::new();
         while let Some(op) = self.peek() {
             if op == "*" || op == "/" {
+                ops.push(op);
                 self.consume();
-                let right = self.parse_unary()?;
-                left = Expression::BinaryOp {
-                    op: op.clone(),
-                    left: Box::new(left),
-                    right: Box::new(right),
-                };
             } else {
                 break;
             }
+        }
+        for op in ops {
+            let right = self.parse_unary()?;
+            left = Expression::BinaryOp {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
@@ -540,55 +573,55 @@ impl Parser {
                 if let Some(expected_type) = self.expected_data_type {
                     self.consume();
                     match expected_type {
-                        DataType::u8 => {
+                        DataType::U8 => {
                             literal
                                 .parse::<u8>()
-                                .map(Expression::Literalu8)
+                                .map(Expression::LiteralU8)
                                 .map_err(|e| e.to_string());
                         }
-                        DataType::i8 => {
+                        DataType::I8 => {
                             literal
                                 .parse::<i8>()
-                                .map(Expression::Literali8)
+                                .map(Expression::LiteralI8)
                                 .map_err(|e| e.to_string());
                         }
-                        DataType::u16 => {
+                        DataType::U16 => {
                             literal
                                 .parse::<u16>()
-                                .map(Expression::Literalu16)
+                                .map(Expression::LiteralU16)
                                 .map_err(|e| e.to_string());
                         }
-                        DataType::i16 => {
+                        DataType::I16 => {
                             literal
                                 .parse::<i16>()
-                                .map(Expression::Literali16)
+                                .map(Expression::LiteralI16)
                                 .map_err(|e| e.to_string());
                         }
-                        DataType::f16 => {
+                        DataType::F16 => {
                             literal
                                 .parse::<f16>()
-                                .map(Expression::Literalf16)
+                                .map(Expression::LiteralF16)
                                 .map_err(|e| e.to_string());
                         }
-                        DataType::u32 => {
+                        DataType::U32 => {
                             literal
                                 .parse::<u32>()
-                                .map(Expression::Literalu32)
+                                .map(Expression::LiteralU32)
                                 .map_err(|e| e.to_string());
                         }
-                        DataType::i32 => {
+                        DataType::I32 => {
                             literal
                                 .parse::<i32>()
-                                .map(Expression::Literali32)
+                                .map(Expression::LiteralI32)
                                 .map_err(|e| e.to_string());
                         }
-                        DataType::f32 => {
+                        DataType::F32 => {
                             literal
                                 .parse::<f32>()
-                                .map(Expression::Literalf32)
+                                .map(Expression::LiteralF32)
                                 .map_err(|e| e.to_string());
                         }
-                        DataType::bool => {
+                        DataType::Bool => {
                             if let Ok(val) = literal.parse::<bool>() {
                                 Ok(Expression::LiteralBool(val))
                             } else {
@@ -605,10 +638,10 @@ impl Parser {
                 } else {
                     if let Ok(val) = literal.parse::<f32>() {
                         self.consume();
-                        Ok(Expression::Literalf32(val))
+                        Ok(Expression::LiteralF32(val))
                     } else if let Ok(val) = literal.parse::<i32>() {
                         self.consume();
-                        Ok(Expression::Literali32(val))
+                        Ok(Expression::LiteralI32(val))
                     } else {
                         Err(format!(
                             "Numeric literal '{}' could not be automatically typed",
@@ -634,7 +667,30 @@ impl Parser {
 }
 
 fn main() {
-    let mut tokens;
+    let tokens = vec![
+        "fn".to_string(),
+        "main".to_string(),
+        "(".to_string(),
+        ")".to_string(),
+        "{".to_string(),
+        "u8".to_string(),
+        "my_u8".to_string(),
+        "=".to_string(),
+        "123".to_string(),
+        "i32".to_string(),
+        "my_i32".to_string(),
+        "=".to_string(),
+        "456".to_string(),
+        "f32".to_string(),
+        "my_f32".to_string(),
+        "=".to_string(),
+        "3.14".to_string(),
+        "return".to_string(),
+        "(".to_string(),
+        "my_i32".to_string(),
+        ")".to_string(),
+        "}".to_string(),
+    ];
     let mut parser = Parser::new(tokens);
     let program = parser.parse()?;
     println!("{:?}", program);
