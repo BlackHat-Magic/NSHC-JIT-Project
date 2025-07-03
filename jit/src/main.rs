@@ -1,34 +1,69 @@
-use std::collections::HashMap;
+use half::f16;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum DataType {
-    u8,
-    i8,
-    u16,
-    i16,
-    f16,
-    u32,
-    i32,
-    f32,
+    U8,
+    I8,
+    U16,
+    I16,
+    F16,
+    U32,
+    I32,
+    F32,
+    Bool,
 }
 
 #[derive(Debug)]
 enum Expression {
-    Literalu8(u8),
-    Literali8(i8),
-    Literalu16(u16),
-    Literali16(i16),
-    Literalf16(f16),
-    Literalu32(u32),
-    Literali32(i32),
-    Literalf32(f32),
+    LiteralU8(u8),
+    LiteralI8(i8),
+    LiteralU16(u16),
+    LiteralI16(i16),
+    LiteralF16(f16),
+    LiteralU32(u32),
+    LiteralI32(i32),
+    LiteralF32(f32),
+    LiteralBool(bool),
     Variable(String),
     BinaryOp {
         op: String,
         left: Box<Expression>,
         right: Box<Expression>,
-    }
-    // TODO: add remaining expressions
+    },
+    UnaryOp {
+        op: String, // `-` or `!`
+        expression: Box<Expression>,
+    },
+    FunctionCall {
+        name: String,
+        arguments: Vec<Expression>,
+    },
+    FieldAccess {
+        // TODO: implement
+        expression: Box<Expression>,
+        field_name: String,
+    },
+    ArrayAccess {
+        // TODO: implement
+        array: Box<Expression>,
+        index: Box<Expression>,
+    },
+    Comparison {
+        op: String, // `==`, `!=`, `<`, `>`, `<=`, `>=`
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    LogicalOp {
+        op: String, // `&&`, `||`
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    // cast might not be necessary; can be parsed as a function?
+    Cast {
+        // TODO: implement
+        data_type: DataType,
+        expression: Box<Expression>,
+    },
 }
 
 #[derive(Debug)]
@@ -87,16 +122,23 @@ enum TopLevel {
     // include structs in the future
 }
 
+#[derive(Debug)]
 struct Parser {
     tokens: Vec<String>,
     current: usize,
+    expected_data_type: Option<DataType>,
 }
 impl Parser {
     fn new(tokens: Vec<String>) -> Self {
-        Parser { tokens, current: 0 }
+        Parser {
+            tokens,
+            current: 0,
+            expected_data_type: None,
+        }
     }
 
     fn peek(&self) -> Option<&String> {
+        // Some(self.tokens[self.current].clone())
         self.tokens.get(self.current)
     }
 
@@ -105,6 +147,8 @@ impl Parser {
             let token = self.tokens[self.current].clone();
             self.current += 1;
             Some(token)
+        } else {
+            None
         }
     }
 
@@ -119,7 +163,7 @@ impl Parser {
     fn parse(&mut self) -> Result<Vec<TopLevel>, String> {
         let mut top_levels = Vec::new();
         while self.peek().is_some() {
-            if(self.peek() == Some(&"fn".to_string())) {
+            if self.peek() == Some(&"fn".to_string()) {
                 top_levels.push(TopLevel::Function(self.parse_function_declaration()?));
             } else {
                 // TODO: Improve error
@@ -135,12 +179,12 @@ impl Parser {
         let name = self.consume().ok_or("Expected function name")?;
         self.expect("(")?;
         let mut parameters = Vec::new();
-        if(self.peek() != Some(&")".to_string())) {
+        if self.peek() != Some(&")".to_string()) {
             loop {
                 let data_type = self.parse_data_type()?;
                 let variable_name = self.consume().ok_or("Expected parameter name")?;
                 parameters.push((data_type, variable_name));
-                if(self.peek() == Some(&",".to_string())) {
+                if self.peek() == Some(&",".to_string()) {
                     self.consume();
                 } else {
                     break;
@@ -149,7 +193,7 @@ impl Parser {
         }
         self.expect(")")?;
         let return_type = if self.peek() == Some(&"->".to_string()) {
-            self.consume()?;
+            self.consume();
             Some(self.parse_data_type()?)
         } else {
             None
@@ -169,15 +213,15 @@ impl Parser {
 
     fn parse_data_type(&mut self) -> Result<DataType, String> {
         match self.consume().as_deref() {
-            Some("bool") => Ok(DataType::bool),
-            Some("u8") => Ok(DataType::u8),
-            Some("i8") => Ok(DataType::i8),
-            Some("u16") => Ok(DataType::u16),
-            Some("i16") => Ok(DataType::i16),
-            Some("f16") => Ok(DataType::f16),
-            Some("u32") => Ok(DataType::u32),
-            Some("i32") => Ok(DataType::i32),
-            Some("f32") => Ok(DataType::f32),
+            Some("bool") => Ok(DataType::Bool),
+            Some("u8") => Ok(DataType::U8),
+            Some("i8") => Ok(DataType::I8),
+            Some("u16") => Ok(DataType::U16),
+            Some("i16") => Ok(DataType::I16),
+            Some("f16") => Ok(DataType::F16),
+            Some("u32") => Ok(DataType::U32),
+            Some("i32") => Ok(DataType::I32),
+            Some("f32") => Ok(DataType::F32),
             Some(other) => Err(format!("Invalid data type: {}", other)),
             None => Err("Expected data type, but got EOF".to_string()),
         }
@@ -185,15 +229,24 @@ impl Parser {
 
     fn parse_block(&mut self) -> Result<Vec<Statement>, String> {
         let mut statements = Vec::new();
-        while(self.peek() != Some(&"}".to_string()) && Self.peek().is_some()) {
+        while self.peek() != Some(&"}".to_string()) && self.peek().is_some() {
             statements.push(self.parse_statement()?);
         }
         Ok(statements)
     }
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
-        match self.peek().as_deref() {
-            Some("bool") | Some("i8") | Some("u16") | Some("i16") | Some("f16") | Some("u32") | Some("i32") | Some("f32") => self.parse_declaration(),
+        let peeked = self.peek().cloned();
+        match peeked.as_deref() {
+            Some("bool") => self.parse_declaration(),
+            Some("u8") => self.parse_declaration(),
+            Some("i8") => self.parse_declaration(),
+            Some("u16") => self.parse_declaration(),
+            Some("i16") => self.parse_declaration(),
+            Some("f16") => self.parse_declaration(),
+            Some("u32") => self.parse_declaration(),
+            Some("i32") => self.parse_declaration(),
+            Some("f32") => self.parse_declaration(),
             Some("if") => self.parse_if_statement(),
             Some("for") => self.parse_for_statement(),
             Some("while") => self.parse_while_statement(),
@@ -204,34 +257,43 @@ impl Parser {
                 let mut parser_copy = Parser {
                     tokens: self.tokens.clone(),
                     current: self.current,
+                    expected_data_type: self.expected_data_type,
                 };
-                parser_copy.consume() // consume identifier
-                match parser_copy.peek().as_deref() {
-                    Some("=") => self.parse_assignment(ident.clone()),
+                parser_copy.consume();
+                match parser_copy.peek().as_ref().map(|s| s.as_str()) {
+                    Some("=") => self.parse_assignment(ident.to_string().clone()),
                     Some("++") => {
                         self.consume();
                         self.consume();
-                        Ok(Statement::Increment { variable_name: ident.clone() })
+                        Ok(Statement::Increment {
+                            variable_name: ident.to_string().clone(),
+                        })
                     }
                     Some("--") => {
                         self.consume();
                         self.consume();
-                        Ok(Statement::Decrement { variable_name: ident.clone() })
+                        Ok(Statement::Decrement {
+                            variable_name: ident.to_string().clone(),
+                        })
                     }
-                    Some("(") => self.parse_function_call(ident.clone()),
-                    _ => Err(format!("Unexpected token after identifier: {:?}", parser_copy.peek())),
+                    Some("(") => self.parse_function_call(ident.to_string().clone()),
+                    _ => Err(format!(
+                        "Unexpected token after identifier: {:?}",
+                        parser_copy.peek()
+                    )),
                 }
             }
             None => Err("Expected statement, but got EOF".to_string()),
-            _ => Err(format!("Unexpected token {:?}", self.peek())),
         }
     }
 
     fn parse_declaration(&mut self) -> Result<Statement, String> {
         let data_type = self.parse_data_type()?;
+        self.expected_data_type = Some(data_type);
         let variable_name = self.consume().ok_or("Expected variable name")?;
         self.expect("=")?;
         let expression = self.parse_expression()?;
+        self.expected_data_type = None;
         // self.expect(";")?; //removed since there's no semicolon...?
         Ok(Statement::Declaration {
             data_type,
@@ -241,9 +303,7 @@ impl Parser {
     }
 
     fn parse_assignment(&mut self, variable_name: String) -> Result<Statement, String> {
-        // TODO: check that we don't need to consume the token first
-        // I'm pretty sure that the `current` value would still point to the variable name
-        // but we're expecting an assignment operator
+        // TODO: associativity
         self.expect("=")?;
         let expression = self.parse_expression()?;
         // self.expect(";")?;
@@ -264,7 +324,7 @@ impl Parser {
 
         let mut elif_branches = Vec::new();
         while self.peek() == Some(&"elif".to_string()) {
-            self.consume()?;
+            self.consume();
             self.expect("(")?;
             let condition = self.parse_expression()?;
             self.expect(")")?;
@@ -275,7 +335,7 @@ impl Parser {
         }
 
         let else_branch = if self.peek() == Some(&"else".to_string()) {
-            self.consume()?;
+            self.consume();
             self.expect("{")?;
             let else_branch = self.parse_block()?;
             self.expect("}")?;
@@ -301,10 +361,7 @@ impl Parser {
         let body = self.parse_block()?;
         self.expect("}")?;
 
-        Ok(Statement::While {
-            condition,
-            body,
-        })
+        Ok(Statement::While { condition, body })
     }
 
     fn parse_for_statement(&mut self) -> Result<Statement, String> {
@@ -316,8 +373,8 @@ impl Parser {
         // self.expect(";");
         let increment = match self.parse_statement() {
             Ok(stmt) => Box::new(stmt),
-            Err(e) => return Err(r),
-        }
+            Err(e) => return Err(e),
+        };
         self.expect(")")?;
         self.expect("{")?;
         let body = self.parse_block()?;
@@ -341,17 +398,14 @@ impl Parser {
     }
 
     fn parse_function_call(&mut self, name: String) -> Result<Statement, String> {
-        // TODO: check that we don't need to consume the token first
-        // I'm pretty sure that the `current` value would still point to the variable name
-        // but we're expecting an assignment operator
         self.expect("(")?;
         let mut arguments = Vec::new();
-        if(self.peek() != Some(&")".to_string())) {
+        if self.peek() != Some(&")".to_string()) {
             loop {
                 let expression = self.parse_expression()?;
                 arguments.push(expression);
-                if(self.peek() == Some(&",".to_string())) {
-                    self.consume()?;
+                if self.peek() == Some(&",".to_string()) {
+                    self.consume();
                 } else {
                     break;
                 }
@@ -363,18 +417,96 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expression, String> {
-        // TODO: operator precedence
-        let mut left = self.parse_primary()?;
+        // Start with the lowest precedence: logical operators
+        Ok(self.parse_logical_or()?)
+    }
 
+    fn parse_logical_or(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_logical_and()?;
+
+        let mut ops = Vec::new();
         while let Some(op) = self.peek() {
-            if op == "+" || op == "-" || op == "*" || op == "/" {
+            if op == "||" {
+                ops.push(op.clone());
                 self.consume();
-                let right = self.parse_primary()?;
-                left = Expression::BinaryOp {
-                    op: op.clone(),
-                    left: Box::new(left),
-                    right: Box::new(right),
-                };
+            } else {
+                break;
+            }
+        }
+        for op in ops {
+            let right = self.parse_logical_and()?;
+            left = Expression::LogicalOp {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
+            }
+        }
+        Ok(left)
+    }
+
+    fn parse_logical_and(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_comparison()?;
+
+        let mut ops = Vec::new();
+        while let Some(op) = self.peek() {
+            if op == "&&" {
+                ops.push(op.clone());
+                self.consume();
+            } else {
+                break;
+            }
+        }
+        for op in ops {
+            let right = self.parse_comparison()?;
+            left = Expression::LogicalOp {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_comparison(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_addition()?;
+
+        let mut ops = Vec::new();
+        while let Some(op) = self.peek() {
+            if op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" {
+                ops.push(op.clone());
+                self.consume();
+            } else {
+                break;
+            }
+        }
+        for op in ops {
+            let right = self.parse_addition()?;
+            left = Expression::Comparison {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_addition(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_multiplication()?;
+
+        loop {
+            if let Some(op) = self.peek().as_deref() {
+                if op == "+" || op == "-" {
+                    // The immutable borrow is gone, so we can now borrow mutably.
+                    let consumed_op = self.consume().unwrap(); // We know it's Some
+                    let right = self.parse_multiplication()?;
+                    left = Expression::BinaryOp {
+                        op: consumed_op,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                    };
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
@@ -383,52 +515,142 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_primary(&mut self) -> Result<Expression, String> {
-        // TODO: properly adapt to accept f16, f32, etc.
-        match self.peek().as_deref() {
-            Some(literal) if literal.chars().all(|c| c.is_digit(10)) => {
-                if let Ok(val) = literal.parse::<u8>() {
-                    self.consume();
-                    Ok(Expression::Literalu8(val))
-                } else if let Ok(val) = literal.parse::<i8>() {
-                    self.consume();
-                    Ok(Expression::Literali8(val))
-                } else if let Ok(val) = literal.parse::<u16>() {
-                    self.consume();
-                    Ok(Expression::Literalu16(val))
-                } else if let Ok(val) = literal.parse::<i16>() {
-                    self.consume();
-                    Ok(Expression::Literali16(val))
-                } else if let Ok(val) = literal.parse::<f16>() {
-                    self.consume();
-                    Ok(Expression::Literalf16(val))
-                } else if let Ok(val) = literal.parse::<u32>() {
-                    self.consume();
-                    Ok(Expression::Literalu32(val))
-                } else if let Ok(val) = literal.parse::<i32>() {
-                    self.consume();
-                    Ok(Expression::Literali32(val))
-                } else if let Ok(val) = literal.parse::<f32>() {
-                    self.consume();
-                    Ok(Expression::Literalf32(val))
-                } else {
-                    Err(format!("Numeric literal too large: {}", literal))
-                }
-            }
-            Some(literal) if literal.contains('.') && literal.chars().filter(|c| *c == '.').count() == 1 => {
-                if(let Ok(val) = literal.parse::<f32>()) {
-                    self.consume();
-                    Ok(Expression::Literalf32(val))
-                } else {
-                    Err(format!("Invalid floating point literal: {}", literal))
-                }
-            }
-            Some(ident) of literal.chars().all(|c| c.is_alphabetic() || c == '_') => {
+    fn parse_multiplication(&mut self) -> Result<Expression, String> {
+        let mut left = self.parse_unary()?;
+
+        let mut ops = Vec::new();
+        while let Some(op) = self.peek() {
+            if op == "*" || op == "/" {
+                ops.push(op.clone());
                 self.consume();
-                Ok(Expression::Variable)
+            } else {
+                break;
+            }
+        }
+        for op in ops {
+            let right = self.parse_unary()?;
+            left = Expression::BinaryOp {
+                op: op.clone(),
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_unary(&mut self) -> Result<Expression, String> {
+        // If next token is a '!' or '-', consume it, recurse, return a UnaryOp.
+        if let Some(op) = self.peek().map(String::as_str) {
+            if op == "!" || op == "-" {
+                let consumed_op = self.consume().unwrap();
+                let expr = self.parse_unary()?;
+                return Ok(Expression::UnaryOp {
+                    op: consumed_op,
+                    expression: Box::new(expr),
+                });
+            }
+        }
+        // Otherwise, it's not a unary op, so parse a primary.
+        self.parse_primary()
+    }
+
+    fn parse_primary(&mut self) -> Result<Expression, String> {
+        let peeked = self.peek().cloned();
+        match peeked.as_deref() {
+            Some("true") => {
+                self.consume();
+                Ok(Expression::LiteralBool(true))
+            }
+            Some("false") => {
+                self.consume();
+                Ok(Expression::LiteralBool(false))
+            }
+            Some(literal)
+                if literal.chars().all(|c| c.is_digit(10))
+                    || (literal.contains('.')
+                        && literal.chars().filter(|c| *c == '.').count() == 1) =>
+            {
+                if let Some(expected_type) = self.expected_data_type {
+                    self.consume();
+                    let result = match expected_type {
+                        DataType::U8 => literal
+                            .parse::<u8>()
+                            .map(Expression::LiteralU8)
+                            .map_err(|e| e.to_string()),
+                        DataType::I8 => literal
+                            .parse::<i8>()
+                            .map(Expression::LiteralI8)
+                            .map_err(|e| e.to_string()),
+                        DataType::U16 => literal
+                            .parse::<u16>()
+                            .map(Expression::LiteralU16)
+                            .map_err(|e| e.to_string()),
+                        DataType::I16 => literal
+                            .parse::<i16>()
+                            .map(Expression::LiteralI16)
+                            .map_err(|e| e.to_string()),
+                        DataType::F16 => literal
+                            .parse::<f16>()
+                            .map(Expression::LiteralF16)
+                            .map_err(|e| e.to_string()),
+                        DataType::U32 => literal
+                            .parse::<u32>()
+                            .map(Expression::LiteralU32)
+                            .map_err(|e| e.to_string()),
+                        DataType::I32 => literal
+                            .parse::<i32>()
+                            .map(Expression::LiteralI32)
+                            .map_err(|e| e.to_string()),
+                        DataType::F32 => literal
+                            .parse::<f32>()
+                            .map(Expression::LiteralF32)
+                            .map_err(|e| e.to_string()),
+                        DataType::Bool => {
+                            // This arm was already correct
+                            if literal == "true" {
+                                Ok(Expression::LiteralBool(true))
+                            } else if literal == "false" {
+                                Ok(Expression::LiteralBool(false))
+                            } else {
+                                Err(format!("'{}' is not a valid boolean value", literal))
+                            }
+                        }
+                    };
+                    result.map_err(|e| {
+                        format!(
+                            "Invalid literal '{}' for type '{:?}': {}",
+                            literal, expected_type, e
+                        )
+                    })
+                } else {
+                    if let Ok(val) = literal.parse::<f32>() {
+                        self.consume();
+                        Ok(Expression::LiteralF32(val))
+                    } else if let Ok(val) = literal.parse::<i32>() {
+                        self.consume();
+                        Ok(Expression::LiteralI32(val))
+                    } else {
+                        Err(format!(
+                            "Numeric literal '{}' could not be automatically typed",
+                            literal
+                        ))
+                    }
+                }
+            }
+            Some(ident) => {
+                let mut chars = ident.chars();
+                if let Some(first) = chars.next() {
+                    if (first.is_alphabetic() || first == '_')
+                        && chars.all(|c| c.is_alphanumeric() || c == '_')
+                    {
+                        self.consume();
+                        return Ok(Expression::Variable(ident.to_string()));
+                    }
+                }
+                Err(format!("Unexpected token: {}", ident))
             }
             Some("(") => {
-                self.consume(); // consume (
+                self.consume();
                 let expression = self.parse_expression()?;
                 self.expect(")")?;
                 Ok(expression)
@@ -440,9 +662,31 @@ impl Parser {
 }
 
 fn main() {
-    let mut tokens;
+    let tokens = vec![
+        "fn".to_string(),
+        "main".to_string(),
+        "(".to_string(),
+        ")".to_string(),
+        "{".to_string(),
+        "u8".to_string(),
+        "my_u8".to_string(),
+        "=".to_string(),
+        "123".to_string(),
+        "i32".to_string(),
+        "my_i32".to_string(),
+        "=".to_string(),
+        "456".to_string(),
+        "f32".to_string(),
+        "my_f32".to_string(),
+        "=".to_string(),
+        "3.14".to_string(),
+        "return".to_string(),
+        "(".to_string(),
+        "my_i32".to_string(),
+        ")".to_string(),
+        "}".to_string(),
+    ];
     let mut parser = Parser::new(tokens);
-    let program = parser.parse()?;
+    let program = parser.parse();
     println!("{:?}", program);
-
 }

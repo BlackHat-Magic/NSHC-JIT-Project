@@ -2,4 +2,4 @@
 **/*.s
 **/*.obj
 LC3VM/lc3-vm
-rv32i-vm/target/
+**/target/
