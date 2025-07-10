@@ -32,3 +32,4 @@ T Lang *might* have the following reserved keywords:
 - typedef
 - class
 - vector
+- enum
