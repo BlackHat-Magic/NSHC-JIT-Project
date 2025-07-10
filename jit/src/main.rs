@@ -1,6 +1,7 @@
 mod lexer;
 mod parser;
 mod ir;
+mod ir_gen;
 mod codegen;
 // mod vm;
 
