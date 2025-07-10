@@ -516,4 +516,6 @@ int main (int argc, char** argv) {
         }
     }
     // shut down
+
+    restore_input_buffering ();
 }
