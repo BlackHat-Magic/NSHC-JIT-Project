@@ -3,3 +3,4 @@
 **/*.obj
 LC3VM/lc3-vm
 **/target/
+**/AGENTS.md

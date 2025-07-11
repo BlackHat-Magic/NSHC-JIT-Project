@@ -1,4 +1,4 @@
-use super::token::*
+use super::token::*;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -125,6 +125,7 @@ impl<'a> Tokenizer<'a> {
                 '[' => Token::OpenBracket,
                 ']' => Token::CloseBracket,
                 ',' => Token::Comma,
+                ';' => Token::Semicolon,
                 '"' => self.tokenize_string(),
                 '\'' => self.tokenize_char(),
                 c if c.is_digit(10) => self.tokenize_number(c),
@@ -157,19 +158,30 @@ impl<'a> Tokenizer<'a> {
     fn tokenize_number(&mut self, first_digit: char) -> Token {
         let mut number_string = String::new();
         number_string.push(first_digit);
+        let mut has_decimal = false;
         while let Some(c) = self.peek() {
             if c.is_digit(10) {
                 number_string.push(self.advance().unwrap());
+            } else if *c == '.' && !has_decimal {
+                number_string.push(self.advance().unwrap());
+                has_decimal = true;
             } else {
                 break;
             }
         }
 
-        // TODO: handle other rtypes
-        if let Ok(value) = number_string.parse::<i32>() {
-            Token::LiteralI32(value)
+        if has_decimal {
+            if let Ok(value) = number_string.parse::<f32>() {
+                Token::LiteralF32(value)
+            } else {
+                panic!("Invalid f32 literal");
+            }
         } else {
-            panic!("Invalid number literal");
+            if let Ok(value) = number_string.parse::<i32>() {
+                Token::LiteralI32(value)
+            } else {
+                panic!("Invalid i32 literal");
+            }
         }
     }
 
@@ -177,7 +189,7 @@ impl<'a> Tokenizer<'a> {
         let mut identifier = String::new();
         identifier.push(first_char);
         while let Some(c) = self.peek() {
-            if c.is_alphanumeric() || c == '_' {
+            if c.is_alphanumeric() || *c == '_' {
                 identifier.push(self.advance().unwrap());
             } else {
                 break;
@@ -185,30 +197,30 @@ impl<'a> Tokenizer<'a> {
         }
 
         match identifier.as_str() {
-            Some("fn") => Token::Fn,
-            Some("if") => Token::If,
-            Some("else") => Token::Else,
-            Some("elif") => Token::Elif,
-            Some("for") => Token::For,
-            Some("while") => Token::While,
-            Some("return") => Token::Return,
-            Some("true") => Token::True,
-            Some("false") => Token::False,
+            "fn" => Token::Fn,
+            "if" => Token::If,
+            "else" => Token::Else,
+            "elif" => Token::Elif,
+            "for" => Token::For,
+            "while" => Token::While,
+            "return" => Token::Return,
+            "true" => Token::True,
+            "false" => Token::False,
 
-            Some("bool") => Token::Bool,
-            Some("string") => Token::String,
-            Some("char") => Token::Char,
-            Some("u8") => Token::U8,
-            Some("i8") => Token::I8,
-            Some("u16") => Token::U16,
-            Some("i16") => Token::I16,
-            Some("f16") => Token::F16,
-            Some("u32") => Token::U32,
-            Some("i32") => Token::I32,
-            Some("f32") => Token::F32,
-            Some("u64") => Token::U64,
-            Some("i64") => Token::I64,
-            Some("f64") => Token::F64,
+            "bool" => Token::Bool,
+            "string" => Token::String,
+            "char" => Token::Char,
+            "u8" => Token::U8,
+            "i8" => Token::I8,
+            "u16" => Token::U16,
+            "i16" => Token::I16,
+            "f16" => Token::F16,
+            "u32" => Token::U32,
+            "i32" => Token::I32,
+            "f32" => Token::F32,
+            "u64" => Token::U64,
+            "i64" => Token::I64,
+            "f64" => Token::F64,
 
             _ => Token::Identifier(identifier),
         }

@@ -84,6 +84,7 @@ pub enum Token {
     OpenBracket,    // [
     CloseBracket,   // ]
     Comma,          // ,
+    Semicolon,      // ;
 
     // Other
     Arrow, // -> (used for function return types)
