@@ -31,17 +31,20 @@ pub enum Token {
     Identifier(String), // Variable names, function names
 
     // Literals
-    LiteralBool(bool),     // Boolean literal
-    LiteralChar(char),     // Char literal
-    LiteralString(String), // String literal
-    LiteralU8(u8),         // 8-bit unsigned integer literal
-    LiteralI8(i8),         // 8-bit signed integer literal
-    LiteralU16(u16),       // 16-bit unsigned integer literal
-    LiteralI16(i16),       // 16-bit signed integer literal
-    LiteralF16(half::f16), // 16-bit float literal
-    LiteralU32(u32),       // 32-bit unsigned integer literal
-    LiteralI32(i32),       // 32-bit signed integer literal
-    LiteralF32(f32),       // 32-bit float literal
+    LiteralBool(bool),      // Boolean literal
+    LiteralChar(char),      // Char literal
+    LiteralString(String),  // String literal
+    LiteralU8(u8),          // 8-bit unsigned integer literal
+    LiteralI8(i8),          // 8-bit signed integer literal
+    LiteralU16(u16),        // 16-bit unsigned integer literal
+    LiteralI16(i16),        // 16-bit signed integer literal
+    LiteralF16(half::f16),  // 16-bit float literal
+    LiteralU32(u32),        // 32-bit unsigned integer literal
+    LiteralI32(i32),        // 32-bit signed integer literal
+    LiteralF32(f32),        // 32-bit float literal
+    LiteralU64(u64),        // 64-bit unsigned integer literal
+    LiteralI64(i64),        // 64-bit signed integer literal
+    LiteralF64(f64),        // 64-bit float literal
 
     // Operators
     Assign,   // =
