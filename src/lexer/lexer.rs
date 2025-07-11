@@ -1,10 +1,10 @@
-use super::token::*
+use super::token::*;
 use std::iter::Peekable;
 use std::str::Chars;
 
 pub struct Tokenizer<'a> {
     input: &'a str,
-    chars: Peekable<Chars<'a>>
+    chars: Peekable<Chars<'a>>,
 }
 impl<'a> Tokenizer<'a> {
     pub fn new(input: &'a str) -> Self {
@@ -42,7 +42,7 @@ impl<'a> Tokenizer<'a> {
                         self.advance();
                         Token::Equals
                     }
-                    _ => Token::Assign
+                    _ => Token::Assign,
                 },
                 '+' => match self.peek() {
                     Some('+') => {
@@ -53,7 +53,7 @@ impl<'a> Tokenizer<'a> {
                         self.advance();
                         Token::PlusEquals
                     }
-                    _ => Token::Plus
+                    _ => Token::Plus,
                 },
                 '-' => match self.peek() {
                     Some('-') => {
@@ -131,7 +131,7 @@ impl<'a> Tokenizer<'a> {
                 c if c.is_alphabetic() => self.tokenize_identifier(c),
                 _ => Token::EOF,
             },
-            None => Token::EOF
+            None => Token::EOF,
         }
     }
 
@@ -164,13 +164,7 @@ impl<'a> Tokenizer<'a> {
                 break;
             }
         }
-
-        // TODO: handle other rtypes
-        if let Ok(value) = number_string.parse::<i32>() {
-            Token::LiteralI32(value)
-        } else {
-            panic!("Invalid number literal");
-        }
+        Token::LiteralNumber(number_string)
     }
 
     fn tokenize_identifier(&mut self, first_char: char) -> Token {
