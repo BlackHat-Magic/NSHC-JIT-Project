@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::parser::ast::*;
 use crate::ir::ir::*;
+use crate::parser::ast::*;
 
 fn map_data_type(data_type: &DataType) -> IRType {
     match data_type {
@@ -14,8 +14,8 @@ fn map_data_type(data_type: &DataType) -> IRType {
 
 pub struct IrGenerator {
     // per-function
-    variables: HashMap<String, IRType>,     // track variable names
-    instructions: Vec<IRInstruction>,       // Instructions inside the current function
+    variables: HashMap<String, IRType>, // track variable names
+    instructions: Vec<IRInstruction>,   // Instructions inside the current function
     function_name: String,
     parameters: Vec<(IRType, String)>,
     return_type: IRType,
@@ -45,43 +45,57 @@ impl IrGenerator {
         for top_level in top_levels {
             match top_level {
                 TopLevel::Function(func) => {
-                self.function_name = func.name.clone();
-                self.parameters = func.parameters.clone().into_iter().map(|(dt, s)| (map_data_type(&dt), s)).collect();
-                self.return_type = func.return_type.clone().map(|dt| map_data_type(&dt)).unwrap_or(IRType::Void);
-                self.variables.clear();
-                self.instructions.clear();
+                    self.function_name = func.name.clone();
+                    self.parameters = func
+                        .parameters
+                        .clone()
+                        .into_iter()
+                        .map(|(dt, s)| (map_data_type(&dt), s))
+                        .collect();
+                    self.return_type = func
+                        .return_type
+                        .clone()
+                        .map(|dt| map_data_type(&dt))
+                        .unwrap_or(IRType::Void);
+                    self.variables.clear();
+                    self.instructions.clear();
 
-                //Add paramters to variable
-                for (dt, s) in &self.parameters {
-                    self.variables.insert(s.clone(), dt.clone());
-                }
+                    //Add paramters to variable
+                    for (dt, s) in &self.parameters {
+                        self.variables.insert(s.clone(), dt.clone());
+                    }
 
-                for statement in &func.body {
-                    self.generate_statement(statement)?;
-                }
+                    for statement in &func.body {
+                        self.generate_statement(statement)?;
+                    }
 
-                let ir_function = IRFunction {
-                    name: self.function_name.clone(),
-                    parameters: self.parameters.clone(),
-                    return_type: self.return_type.clone(),
-                    body: self.instructions.clone(),
-                };
+                    let ir_function = IRFunction {
+                        name: self.function_name.clone(),
+                        parameters: self.parameters.clone(),
+                        return_type: self.return_type.clone(),
+                        body: self.instructions.clone(),
+                    };
 
-                self.functions.push(ir_function);
+                    self.functions.push(ir_function);
                 }
             }
         }
 
         Ok(IRProgram {
-        functions: self.functions.clone()
+            functions: self.functions.clone(),
         })
     }
 
     fn generate_statement(&mut self, statement: &Statement) -> Result<(), String> {
         match statement {
-            Statement::Declaration { data_type, variable_name, expression } => {
+            Statement::Declaration {
+                data_type,
+                variable_name,
+                expression,
+            } => {
                 let ir_type = map_data_type(data_type);
-                self.variables.insert(variable_name.clone(), ir_type.clone());
+                self.variables
+                    .insert(variable_name.clone(), ir_type.clone());
                 let value = self.generate_expression(expression)?;
 
                 //Store the value to the global variable
@@ -93,7 +107,10 @@ impl IrGenerator {
                 self.instructions.push(store_instruction);
                 Ok(())
             }
-            Statement::Assignment { variable_name, expression } => {
+            Statement::Assignment {
+                variable_name,
+                expression,
+            } => {
                 let value = self.generate_expression(expression)?;
 
                 let store_instruction = IRInstruction {
@@ -108,7 +125,11 @@ impl IrGenerator {
                 // Implement increment by loading the variable, adding 1, and storing back
                 let load_instruction = IRInstruction {
                     opcode: IROpcode::Load,
-                    result_type: self.variables.get(variable_name).ok_or(format!("Variable not found: {}", variable_name))?.clone(),
+                    result_type: self
+                        .variables
+                        .get(variable_name)
+                        .ok_or(format!("Variable not found: {}", variable_name))?
+                        .clone(),
                     operands: vec![IRValue::GlobalVariable(variable_name.clone())],
                 };
                 self.instructions.push(load_instruction.clone());
@@ -116,24 +137,38 @@ impl IrGenerator {
 
                 let add_instruction = IRInstruction {
                     opcode: IROpcode::Add,
-                    result_type: self.variables.get(variable_name).ok_or(format!("Variable not found: {}", variable_name))?.clone(),
-                    operands: vec![IRValue::Instruction(value_index), IRValue::Constant(IRConstant::I32(1))],
+                    result_type: self
+                        .variables
+                        .get(variable_name)
+                        .ok_or(format!("Variable not found: {}", variable_name))?
+                        .clone(),
+                    operands: vec![
+                        IRValue::Instruction(value_index),
+                        IRValue::Constant(IRConstant::I32(1)),
+                    ],
                 };
                 self.instructions.push(add_instruction);
 
                 let store_instruction = IRInstruction {
                     opcode: IROpcode::Store,
                     result_type: IRType::Void,
-                    operands: vec![IRValue::GlobalVariable(variable_name.clone()), IRValue::Instruction(self.instructions.len() - 1)],
+                    operands: vec![
+                        IRValue::GlobalVariable(variable_name.clone()),
+                        IRValue::Instruction(self.instructions.len() - 1),
+                    ],
                 };
                 self.instructions.push(store_instruction);
                 Ok(())
             }
             Statement::Decrement { variable_name } => {
-                 // Implement decrement by loading the variable, subtracting 1, and storing back
+                // Implement decrement by loading the variable, subtracting 1, and storing back
                 let load_instruction = IRInstruction {
                     opcode: IROpcode::Load,
-                    result_type: self.variables.get(variable_name).ok_or(format!("Variable not found: {}", variable_name))?.clone(),
+                    result_type: self
+                        .variables
+                        .get(variable_name)
+                        .ok_or(format!("Variable not found: {}", variable_name))?
+                        .clone(),
                     operands: vec![IRValue::GlobalVariable(variable_name.clone())],
                 };
                 self.instructions.push(load_instruction.clone());
@@ -141,21 +176,36 @@ impl IrGenerator {
 
                 let sub_instruction = IRInstruction {
                     opcode: IROpcode::Sub,
-                    result_type: self.variables.get(variable_name).ok_or(format!("Variable not found: {}", variable_name))?.clone(),
-                    operands: vec![IRValue::Instruction(value_index), IRValue::Constant(IRConstant::I32(1))],
+                    result_type: self
+                        .variables
+                        .get(variable_name)
+                        .ok_or(format!("Variable not found: {}", variable_name))?
+                        .clone(),
+                    operands: vec![
+                        IRValue::Instruction(value_index),
+                        IRValue::Constant(IRConstant::I32(1)),
+                    ],
                 };
                 self.instructions.push(sub_instruction);
 
                 let store_instruction = IRInstruction {
                     opcode: IROpcode::Store,
                     result_type: IRType::Void,
-                    operands: vec![IRValue::GlobalVariable(variable_name.clone()), IRValue::Instruction(self.instructions.len() - 1)],
+                    operands: vec![
+                        IRValue::GlobalVariable(variable_name.clone()),
+                        IRValue::Instruction(self.instructions.len() - 1),
+                    ],
                 };
                 self.instructions.push(store_instruction);
                 Ok(())
             }
-            Statement::If { condition, then_branch, elif_branches, else_branch } => {
-               let condition_value = self.generate_expression(condition)?;
+            Statement::If {
+                condition,
+                then_branch,
+                elif_branches,
+                else_branch,
+            } => {
+                let condition_value = self.generate_expression(condition)?;
 
                 let then_label = self.next_label();
                 let else_label = self.next_label();
@@ -184,15 +234,14 @@ impl IrGenerator {
                 //End if label
                 Ok(())
             }
-            Statement::For { initialization, condition, increment, body } => {
-                Ok(())
-            }
-            Statement::While { condition, body } => {
-                Ok(())
-            }
-            Statement::FunctionCall { name, arguments } => {
-                Ok(())
-            }
+            Statement::For {
+                initialization,
+                condition,
+                increment,
+                body,
+            } => Ok(()),
+            Statement::While { condition, body } => Ok(()),
+            Statement::FunctionCall { name, arguments } => Ok(()),
             Statement::Return { expression } => {
                 let value = self.generate_expression(expression)?;
                 let return_instruction = IRInstruction {

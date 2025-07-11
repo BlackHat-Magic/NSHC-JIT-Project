@@ -1,18 +1,20 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     // Keywords
-    Fn,       // fn
-    If,       // if
-    Else,     // else
-    Elif,     // elif
-    For,      // for
-    While,    // while
-    Return,   // return
-    True,     // true
-    False,    // false
+    Fn,     // fn
+    If,     // if
+    Else,   // else
+    Elif,   // elif
+    For,    // for
+    While,  // while
+    Return, // return
+    True,   // true
+    False,  // false
 
     // Data Types
     Bool,   // bool
+    String, // string
+    Char,   // char
     U8,     // u8
     I8,     // i8
     U16,    // u16
@@ -21,11 +23,17 @@ pub enum Token {
     U32,    // u32
     I32,    // i32
     F32,    // f32
+    U64,    // u64
+    I64,    // i64
+    F64,    // f64
 
     // Identifiers
     Identifier(String), // Variable names, function names
 
     // Literals
+    LiteralBool(bool),      // Boolean literal
+    LiteralChar(char),      // Char literal
+    LiteralString(String),  // String literal
     LiteralU8(u8),          // 8-bit unsigned integer literal
     LiteralI8(i8),          // 8-bit signed integer literal
     LiteralU16(u16),        // 16-bit unsigned integer literal
@@ -34,40 +42,50 @@ pub enum Token {
     LiteralU32(u32),        // 32-bit unsigned integer literal
     LiteralI32(i32),        // 32-bit signed integer literal
     LiteralF32(f32),        // 32-bit float literal
-    LiteralBool(bool),      // Boolean literal
+    LiteralU64(u64),        // 64-bit unsigned integer literal
+    LiteralI64(i64),        // 64-bit signed integer literal
+    LiteralF64(f64),        // 64-bit float literal
 
     // Operators
-    Assign,    // =
-    Plus,      // +
-    Minus,     // -
-    Multiply,  // *
-    Divide,    // /
-    Bang,      // !
+    Assign,   // =
+    Plus,     // +
+    Minus,    // -
+    Multiply, // *
+    Divide,   // /
+    Modulo,   // %
+    Power,    // **
+    Bang,     // !
 
     // Comparison Operators
-    Equals,             // ==
-    NotEquals,          // !=
-    LessThan,           // <
-    GreaterThan,        // >
-    LessThanEquals,     // <=
-    GreaterThanEquals,  // >=
+    Equals,            // ==
+    NotEquals,         // !=
+    LessThan,          // <
+    GreaterThan,       // >
+    LessThanEquals,    // <=
+    GreaterThanEquals, // >=
 
     // Logical Operators
-    And,    // &&
-    Or,     // ||
+    And, // &&
+    Or,  // ||
 
     // Increment/Decrement
-    Increment,  // ++
-    Decrement,  // --
+    Increment,    // ++
+    PlusEquals,   // +=
+    Decrement,    // --
+    MinusEquals,  // -=
+    TimesEquals,  // *=
+    DivideEquals, // /=
 
     // Delimiters
-    OpenParen,  // (
-    CloseParen, // )
-    OpenBrace,  // {
-    CloseBrace, // }
-    Comma,      // ,
+    OpenParen,      // (
+    CloseParen,     // )
+    OpenBrace,      // {
+    CloseBrace,     // }
+    OpenBracket,    // [
+    CloseBracket,   // ]
+    Comma,          // ,
 
     // Other
-    Arrow,  // -> (used for function return types)
-    EOF,    // End of File
+    Arrow, // -> (used for function return types)
+    EOF,   // End of File
 }

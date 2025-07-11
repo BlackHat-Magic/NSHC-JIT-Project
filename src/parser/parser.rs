@@ -1,5 +1,5 @@
-use half::f16;
 use super::ast::*;
+use half::f16;
 
 #[derive(Debug)]
 pub struct Parser {
