@@ -1,5 +1,5 @@
+mod codegen;
+mod ir;
 mod lexer;
 mod parser;
-mod ir;
-mod codegen;
 // mod vm;
