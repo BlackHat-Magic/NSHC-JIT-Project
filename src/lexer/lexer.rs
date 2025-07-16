@@ -4,7 +4,7 @@ use std::str::Chars;
 
 pub struct Tokenizer<'a> {
     input: &'a str,
-    chars: Peekable<Chars<'a>>
+    chars: Peekable<Chars<'a>>,
 }
 impl<'a> Tokenizer<'a> {
     pub fn new(input: &'a str) -> Self {
@@ -42,7 +42,7 @@ impl<'a> Tokenizer<'a> {
                         self.advance();
                         Token::Equals
                     }
-                    _ => Token::Assign
+                    _ => Token::Assign,
                 },
                 '+' => match self.peek() {
                     Some('+') => {
@@ -53,7 +53,7 @@ impl<'a> Tokenizer<'a> {
                         self.advance();
                         Token::PlusEquals
                     }
-                    _ => Token::Plus
+                    _ => Token::Plus,
                 },
                 '-' => match self.peek() {
                     Some('-') => {
@@ -132,7 +132,7 @@ impl<'a> Tokenizer<'a> {
                 c if c.is_alphabetic() => self.tokenize_identifier(c),
                 _ => Token::EOF,
             },
-            None => Token::EOF
+            None => Token::EOF,
         }
     }
 
