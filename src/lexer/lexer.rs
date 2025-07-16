@@ -187,7 +187,6 @@ impl<'a> Tokenizer<'a> {
                 break;
             }
         }
-
         Token::LiteralNumber(number_string)
     }
 
