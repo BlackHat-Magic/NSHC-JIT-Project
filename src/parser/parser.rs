@@ -343,8 +343,6 @@ impl Parser {
         })
     }
 
-    // ... (other statement parsing methods remain the same) ...
-
     fn parse_if_statement(&mut self) -> Result<Statement, String> {
         self.expect(Token::If)?;
         self.expect(Token::OpenParen)?;

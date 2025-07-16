@@ -181,12 +181,13 @@ impl<'a> Tokenizer<'a> {
         let mut number_string = String::new();
         number_string.push(first_digit);
         while let Some(c) = self.peek() {
-            if c.is_digit(10) || c.clone() == '.' {
+            if c.is_digit(10) || *c == '.' {
                 number_string.push(self.advance().unwrap());
             } else {
                 break;
             }
         }
+
         Token::LiteralNumber(number_string)
     }
 
