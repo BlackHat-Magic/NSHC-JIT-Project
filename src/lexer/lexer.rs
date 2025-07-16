@@ -187,7 +187,8 @@ impl<'a> Tokenizer<'a> {
                 break;
             }
         }
-        Token::LiteralNumber(number_string) // Store as a string
+
+        Token::LiteralNumber(number_string)
     }
 
     fn tokenize_identifier(&mut self, first_char: char) -> Token {

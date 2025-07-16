@@ -66,14 +66,14 @@ pub enum Token {
     DivideEquals, // /=
 
     // Delimiters
-    OpenParen,      // (
-    CloseParen,     // )
-    OpenBrace,      // {
-    CloseBrace,     // }
-    OpenBracket,    // [
-    CloseBracket,   // ]
-    Comma,          // ,
-    Semicolon,      // ;
+    OpenParen,    // (
+    CloseParen,   // )
+    OpenBrace,    // {
+    CloseBrace,   // }
+    OpenBracket,  // [
+    CloseBracket, // ]
+    Comma,        // ,
+    Semicolon,    // ;
 
     // Other
     Arrow, // -> (used for function return types)

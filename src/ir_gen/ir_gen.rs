@@ -28,6 +28,7 @@ fn map_data_type(data_type: &DataType) -> IRType {
         DataType::I32 => IRType::I32,
         DataType::F32 => IRType::F32,
         DataType::Bool => IRType::Bool,
+        _ => {IRType::Bool}
     }
 }
 
@@ -259,8 +260,14 @@ impl IrGenerator {
                 increment: _,
                 body: _,
             } => Ok(()),
-            Statement::While { condition: _, body: _ } => Ok(()),
-            Statement::FunctionCall { name: _, arguments: _ } => Ok(()),
+            Statement::While {
+                condition: _,
+                body: _,
+            } => Ok(()),
+            Statement::FunctionCall {
+                name: _,
+                arguments: _,
+            } => Ok(()),
             Statement::Return { expression } => {
                 let value = self.generate_expression(expression)?;
                 let return_instruction = IRInstruction {

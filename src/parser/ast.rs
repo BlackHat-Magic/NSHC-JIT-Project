@@ -10,7 +10,12 @@ pub enum DataType {
     U32,
     I32,
     F32,
+    U64,
+    I64,
+    F64,
     Bool,
+    Char,
+    String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -55,7 +60,12 @@ pub enum Expression {
     LiteralU32(u32),
     LiteralI32(i32),
     LiteralF32(f32),
+    LiteralU64(u64),
+    LiteralI64(i64),
+    LiteralF64(f64),
     LiteralBool(bool),
+    LiteralChar(char),
+    LiteralString(String),
     Variable(String),
     BinaryOp {
         op: BinaryOp,
