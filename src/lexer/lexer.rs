@@ -1,10 +1,14 @@
 use super::token::*;
 use std::iter::Peekable;
 use std::str::Chars;
-use std::{
-    i8, i16, i32, i64, u8, u16, u32, u64, f32, f64,
-}; // Import standard types
-use half::f16; // Import the half type
+
+#[derive(Debug)]
+pub enum LexError {
+    UnterminatedString,
+    InvalidCharLiteral,
+    UnexpectedCharacter(char),
+    InvalidEscapeSequence(char),
+}
 
 pub struct Tokenizer<'a> {
     input: &'a str,
@@ -87,6 +91,11 @@ impl<'a> Tokenizer<'a> {
                     _ => Token::Multiply,
                 },
                 '/' => match self.peek() {
+                    Some('/') => {
+                        self.advance();
+                        self.skip_line_comment();
+                        self.next_token()
+                    }
                     Some('=') => {
                         self.advance();
                         Token::DivideEquals
@@ -137,6 +146,15 @@ impl<'a> Tokenizer<'a> {
                 _ => Token::EOF,
             },
             None => Token::EOF,
+        }
+    }
+
+    fn skip_line_comment(&mut self) {
+        while let Some(c) = self.peek() {
+            if *c == '\n' {
+                break;
+            }
+            self.advance();
         }
     }
 
