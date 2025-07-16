@@ -9,10 +9,7 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Parser {
-            tokens,
-            current: 0,
-        }
+        Parser { tokens, current: 0 }
     }
 
     fn peek(&self) -> Option<&Token> {
@@ -37,13 +34,144 @@ impl Parser {
         }
     }
 
+    // Helper method to parse a number string into an appropriate Expression
+    fn parse_number_literal(
+        &self,
+        num_str: &str,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
+        // If we have context about the expected type, use it
+        if let Some(data_type) = expected_type {
+            return self.parse_number_with_type(num_str, data_type);
+        }
+
+        // Otherwise, infer the type from the string format
+        if num_str.contains('.') {
+            // It's a float
+            if let Ok(value) = num_str.parse::<f64>() {
+                Ok(Expression::LiteralF64(value))
+            } else {
+                Err(format!("Invalid float literal: {}", num_str))
+            }
+        } else {
+            // It's an integer - try to fit in the smallest appropriate type
+            if let Ok(value) = num_str.parse::<i32>() {
+                Ok(Expression::LiteralI32(value))
+            } else if let Ok(value) = num_str.parse::<i64>() {
+                Ok(Expression::LiteralI64(value))
+            } else {
+                Err(format!("Invalid integer literal: {}", num_str))
+            }
+        }
+    }
+
+    // Helper method to parse a number string with a specific expected type
+    fn parse_number_with_type(
+        &self,
+        num_str: &str,
+        data_type: &DataType,
+    ) -> Result<Expression, String> {
+        match data_type {
+            DataType::Bool => match num_str {
+                "0" => Ok(Expression::LiteralBool(false)),
+                "1" => Ok(Expression::LiteralBool(true)),
+                _ => Err(format!("Invalid boolean literal: {}", num_str)),
+            },
+            DataType::U8 => {
+                if let Ok(value) = num_str.parse::<u8>() {
+                    Ok(Expression::LiteralU8(value))
+                } else {
+                    Err(format!("Invalid u8 literal: {}", num_str))
+                }
+            }
+            DataType::I8 => {
+                if let Ok(value) = num_str.parse::<i8>() {
+                    Ok(Expression::LiteralI8(value))
+                } else {
+                    Err(format!("Invalid i8 literal: {}", num_str))
+                }
+            }
+            DataType::U16 => {
+                if let Ok(value) = num_str.parse::<u16>() {
+                    Ok(Expression::LiteralU16(value))
+                } else {
+                    Err(format!("Invalid u16 literal: {}", num_str))
+                }
+            }
+            DataType::I16 => {
+                if let Ok(value) = num_str.parse::<i16>() {
+                    Ok(Expression::LiteralI16(value))
+                } else {
+                    Err(format!("Invalid i16 literal: {}", num_str))
+                }
+            }
+            DataType::F16 => {
+                if let Ok(value) = num_str.parse::<f32>() {
+                    Ok(Expression::LiteralF16(half::f16::from_f32(value)))
+                } else {
+                    Err(format!("Invalid f16 literal: {}", num_str))
+                }
+            }
+            DataType::U32 => {
+                if let Ok(value) = num_str.parse::<u32>() {
+                    Ok(Expression::LiteralU32(value))
+                } else {
+                    Err(format!("Invalid u32 literal: {}", num_str))
+                }
+            }
+            DataType::I32 => {
+                if let Ok(value) = num_str.parse::<i32>() {
+                    Ok(Expression::LiteralI32(value))
+                } else {
+                    Err(format!("Invalid i32 literal: {}", num_str))
+                }
+            }
+            DataType::F32 => {
+                if let Ok(value) = num_str.parse::<f32>() {
+                    Ok(Expression::LiteralF32(value))
+                } else {
+                    Err(format!("Invalid f32 literal: {}", num_str))
+                }
+            }
+            DataType::U64 => {
+                if let Ok(value) = num_str.parse::<u64>() {
+                    Ok(Expression::LiteralU64(value))
+                } else {
+                    Err(format!("Invalid u64 literal: {}", num_str))
+                }
+            }
+            DataType::I64 => {
+                if let Ok(value) = num_str.parse::<i64>() {
+                    Ok(Expression::LiteralI64(value))
+                } else {
+                    Err(format!("Invalid i64 literal: {}", num_str))
+                }
+            }
+            DataType::F64 => {
+                if let Ok(value) = num_str.parse::<f64>() {
+                    Ok(Expression::LiteralF64(value))
+                } else {
+                    Err(format!("Invalid f64 literal: {}", num_str))
+                }
+            }
+            // Add other types as needed
+            _ => Err(format!(
+                "Unsupported data type for number literal: {:?}",
+                data_type
+            )),
+        }
+    }
+
     pub fn parse(&mut self) -> Result<Vec<TopLevel>, String> {
         let mut top_levels = Vec::new();
         while self.peek().is_some() && self.peek() != Some(&Token::EOF) {
             if self.peek() == Some(&Token::Fn) {
                 top_levels.push(TopLevel::Function(self.parse_function_declaration()?));
             } else {
-                return Err(format!("Expected 'fn' or struct definition, got {:?}", self.peek()));
+                return Err(format!(
+                    "Expected 'fn' or struct definition, got {:?}",
+                    self.peek()
+                ));
             }
         }
         Ok(top_levels)
@@ -105,6 +233,11 @@ impl Parser {
             Some(Token::U32) => Ok(DataType::U32),
             Some(Token::I32) => Ok(DataType::I32),
             Some(Token::F32) => Ok(DataType::F32),
+            Some(Token::U64) => Ok(DataType::U64),
+            Some(Token::I64) => Ok(DataType::I64),
+            Some(Token::F64) => Ok(DataType::F64),
+            Some(Token::Char) => Ok(DataType::Char),
+            Some(Token::String) => Ok(DataType::String),
             Some(other) => Err(format!("Invalid data type: {:?}", other)),
             None => Err("Expected data type, but got EOF".to_string()),
         }
@@ -120,33 +253,61 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.peek() {
-            Some(Token::Bool) | Some(Token::U8) | Some(Token::I8) | Some(Token::U16) | Some(Token::I16) | Some(Token::F16) | Some(Token::U32) | Some(Token::I32) | Some(Token::F32) => self.parse_declaration(),
+            Some(Token::Bool) | Some(Token::U8) | Some(Token::I8) | Some(Token::U16)
+            | Some(Token::I16) | Some(Token::F16) | Some(Token::U32) | Some(Token::I32)
+            | Some(Token::F32) | Some(Token::U64) | Some(Token::I64) | Some(Token::F64)
+            | Some(Token::Char) | Some(Token::String) => {
+                let stmt = self.parse_declaration()?;
+                self.expect(Token::Semicolon)?;
+                Ok(stmt)
+            },
             Some(Token::If) => self.parse_if_statement(),
             Some(Token::For) => self.parse_for_statement(),
             Some(Token::While) => self.parse_while_statement(),
-            Some(Token::Return) => self.parse_return_statement(),
+            Some(Token::Return) => {
+                let stmt = self.parse_return_statement()?;
+                self.expect(Token::Semicolon)?;
+                Ok(stmt)
+            },
             Some(Token::Identifier(_)) => {
                 let next_token = self.tokens.get(self.current + 1);
                 match next_token {
-                    Some(Token::Assign) => self.parse_assignment(),
+                    Some(Token::Assign) => {
+                        let stmt = self.parse_assignment()?;
+                        self.expect(Token::Semicolon)?;
+                        Ok(stmt)
+                    },
                     Some(Token::Increment) => {
                         let name = match self.consume() {
                             Some(Token::Identifier(name)) => name,
                             _ => unreachable!(),
                         };
                         self.consume(); // consume '++'
-                        Ok(Statement::Increment { variable_name: name })
-                    }
+                        self.expect(Token::Semicolon)?;
+                        Ok(Statement::Increment {
+                            variable_name: name,
+                        })
+                    },
                     Some(Token::Decrement) => {
                         let name = match self.consume() {
                             Some(Token::Identifier(name)) => name,
                             _ => unreachable!(),
                         };
                         self.consume(); // consume '--'
-                        Ok(Statement::Decrement { variable_name: name })
+                        self.expect(Token::Semicolon)?;
+                        Ok(Statement::Decrement {
+                            variable_name: name,
+                        })
+                    },
+                    Some(Token::OpenParen) => {
+                        let stmt = self.parse_function_call_statement()?;
+                        self.expect(Token::Semicolon)?;
+                        Ok(stmt)
                     }
-                    Some(Token::OpenParen) => self.parse_function_call_statement(),
-                    _ => Err(format!("Unexpected token after identifier: {:?}", next_token)),
+                    _ => Err(format!(
+                        "Unexpected token after identifier: {:?}",
+                        next_token
+                    )),
                 }
             }
             other => Err(format!("Expected statement, but got {:?}", other)),
@@ -160,8 +321,7 @@ impl Parser {
             other => return Err(format!("Expected variable name, got {:?}", other)),
         };
         self.expect(Token::Assign)?;
-        let expression = self.parse_expression()?;
-        self.expect(Token::Semicolon)?;
+        let expression = self.parse_expression_with_context(Some(&data_type))?;
         Ok(Statement::Declaration {
             data_type,
             variable_name,
@@ -176,12 +336,14 @@ impl Parser {
         };
         self.expect(Token::Assign)?;
         let expression = self.parse_expression()?;
-        self.expect(Token::Semicolon)?;
+        // Note: Removed semicolon expectation - add it back if your grammar requires it
         Ok(Statement::Assignment {
             variable_name,
             expression,
         })
     }
+
+    // ... (other statement parsing methods remain the same) ...
 
     fn parse_if_statement(&mut self) -> Result<Statement, String> {
         self.expect(Token::If)?;
@@ -238,9 +400,7 @@ impl Parser {
         self.expect(Token::For)?;
         self.expect(Token::OpenParen)?;
         let initialization = self.parse_statement()?;
-        self.expect(Token::Semicolon)?;
         let condition = self.parse_expression()?;
-        self.expect(Token::Semicolon)?;
         let increment = self.parse_statement()?;
         self.expect(Token::CloseParen)?;
         self.expect(Token::OpenBrace)?;
@@ -260,7 +420,6 @@ impl Parser {
         self.expect(Token::OpenParen)?;
         let expression = self.parse_expression()?;
         self.expect(Token::CloseParen)?;
-        self.expect(Token::Semicolon)?;
         Ok(Statement::Return { expression })
     }
 
@@ -282,19 +441,28 @@ impl Parser {
             }
         }
         self.expect(Token::CloseParen)?;
-        self.expect(Token::Semicolon)?;
         Ok(Statement::FunctionCall { name, arguments })
     }
 
     fn parse_expression(&mut self) -> Result<Expression, String> {
-        self.parse_logical_or()
+        self.parse_expression_with_context(None)
     }
 
-    fn parse_logical_or(&mut self) -> Result<Expression, String> {
-        let mut left = self.parse_logical_and()?;
+    fn parse_expression_with_context(
+        &mut self,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
+        self.parse_logical_or_with_context(expected_type)
+    }
+
+    fn parse_logical_or_with_context(
+        &mut self,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
+        let mut left = self.parse_logical_and_with_context(expected_type)?;
         while self.peek() == Some(&Token::Or) {
             self.consume();
-            let right = self.parse_logical_and()?;
+            let right = self.parse_logical_and_with_context(expected_type)?;
             left = Expression::LogicalOp {
                 op: LogicalOp::Or,
                 left: Box::new(left),
@@ -304,11 +472,14 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_logical_and(&mut self) -> Result<Expression, String> {
-        let mut left = self.parse_comparison()?;
+    fn parse_logical_and_with_context(
+        &mut self,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
+        let mut left = self.parse_comparison_with_context(expected_type)?;
         while self.peek() == Some(&Token::And) {
             self.consume();
-            let right = self.parse_comparison()?;
+            let right = self.parse_comparison_with_context(expected_type)?;
             left = Expression::LogicalOp {
                 op: LogicalOp::And,
                 left: Box::new(left),
@@ -318,8 +489,11 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_comparison(&mut self) -> Result<Expression, String> {
-        let mut left = self.parse_addition()?;
+    fn parse_comparison_with_context(
+        &mut self,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
+        let mut left = self.parse_addition_with_context(expected_type)?;
         while let Some(token) = self.peek() {
             let op = match token {
                 Token::Equals => Some(ComparisonOp::Equals),
@@ -332,7 +506,7 @@ impl Parser {
             };
             if let Some(op) = op {
                 self.consume();
-                let right = self.parse_addition()?;
+                let right = self.parse_addition_with_context(expected_type)?;
                 left = Expression::Comparison {
                     op,
                     left: Box::new(left),
@@ -345,8 +519,11 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_addition(&mut self) -> Result<Expression, String> {
-        let mut left = self.parse_multiplication()?;
+    fn parse_addition_with_context(
+        &mut self,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
+        let mut left = self.parse_multiplication_with_context(expected_type)?;
         while let Some(token) = self.peek() {
             let op = match token {
                 Token::Plus => Some(BinaryOp::Plus),
@@ -355,7 +532,7 @@ impl Parser {
             };
             if let Some(op) = op {
                 self.consume();
-                let right = self.parse_multiplication()?;
+                let right = self.parse_multiplication_with_context(expected_type)?;
                 left = Expression::BinaryOp {
                     op,
                     left: Box::new(left),
@@ -368,8 +545,11 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_multiplication(&mut self) -> Result<Expression, String> {
-        let mut left = self.parse_unary()?;
+    fn parse_multiplication_with_context(
+        &mut self,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
+        let mut left = self.parse_unary_with_context(expected_type)?;
         while let Some(token) = self.peek() {
             let op = match token {
                 Token::Multiply => Some(BinaryOp::Multiply),
@@ -379,7 +559,7 @@ impl Parser {
             };
             if let Some(op) = op {
                 self.consume();
-                let right = self.parse_unary()?;
+                let right = self.parse_unary_with_context(expected_type)?;
                 left = Expression::BinaryOp {
                     op,
                     left: Box::new(left),
@@ -392,7 +572,10 @@ impl Parser {
         Ok(left)
     }
 
-    fn parse_unary(&mut self) -> Result<Expression, String> {
+    fn parse_unary_with_context(
+        &mut self,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
         if let Some(token) = self.peek() {
             let op = match token {
                 Token::Minus => Some(UnaryOp::Negate),
@@ -401,32 +584,28 @@ impl Parser {
             };
             if let Some(op) = op {
                 self.consume();
-                let expression = self.parse_unary()?;
+                let expression = self.parse_unary_with_context(expected_type)?;
                 return Ok(Expression::UnaryOp {
                     op,
                     expression: Box::new(expression),
                 });
             }
         }
-        self.parse_primary()
+        self.parse_primary_with_context(expected_type)
     }
 
-    fn parse_primary(&mut self) -> Result<Expression, String> {
+    fn parse_primary_with_context(
+        &mut self,
+        expected_type: Option<&DataType>,
+    ) -> Result<Expression, String> {
         match self.consume() {
-            Some(Token::LiteralBool(val)) => Ok(Expression::LiteralBool(val)),
-            Some(Token::LiteralChar(_)) => Err("char literal parsing not implemented".to_string()),
-            Some(Token::LiteralString(_)) => Err("string literal parsing not implemented".to_string()),
-            Some(Token::LiteralU8(val)) => Ok(Expression::LiteralU8(val)),
-            Some(Token::LiteralI8(val)) => Ok(Expression::LiteralI8(val)),
-            Some(Token::LiteralU16(val)) => Ok(Expression::LiteralU16(val)),
-            Some(Token::LiteralI16(val)) => Ok(Expression::LiteralI16(val)),
-            Some(Token::LiteralF16(val)) => Ok(Expression::LiteralF16(val)),
-            Some(Token::LiteralU32(val)) => Ok(Expression::LiteralU32(val)),
-            Some(Token::LiteralI32(val)) => Ok(Expression::LiteralI32(val)),
-            Some(Token::LiteralF32(val)) => Ok(Expression::LiteralF32(val)),
-            Some(Token::LiteralU64(_)) => Err("u64 literal parsing not implemented".to_string()),
-            Some(Token::LiteralI64(_)) => Err("i64 literal parsing not implemented".to_string()),
-            Some(Token::LiteralF64(_)) => Err("f64 literal parsing not implemented".to_string()),
+            Some(Token::False) => Ok(Expression::LiteralBool(false)),
+            Some(Token::True) => Ok(Expression::LiteralBool(true)),
+            Some(Token::LiteralChar(val)) => Ok(Expression::LiteralChar(val)),
+            Some(Token::LiteralString(val)) => Ok(Expression::LiteralString(val)),
+            Some(Token::LiteralNumber(num_str)) => {
+                self.parse_number_literal(&num_str, expected_type)
+            }
             Some(Token::Identifier(name)) => {
                 if self.peek() == Some(&Token::OpenParen) {
                     self.current -= 1; // backtrack to let parse_function_call_expression handle it
@@ -436,7 +615,7 @@ impl Parser {
                 }
             }
             Some(Token::OpenParen) => {
-                let expression = self.parse_expression()?;
+                let expression = self.parse_expression_with_context(expected_type)?;
                 self.expect(Token::CloseParen)?;
                 Ok(expression)
             }
