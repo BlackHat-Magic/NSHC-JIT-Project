@@ -13,6 +13,38 @@ pub enum DataType {
     Bool,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum BinaryOp {
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+    Power,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum UnaryOp {
+    Negate,
+    Not,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ComparisonOp {
+    Equals,
+    NotEquals,
+    LessThan,
+    GreaterThan,
+    LessThanEquals,
+    GreaterThanEquals,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LogicalOp {
+    And,
+    Or,
+}
+
 #[derive(Debug)]
 pub enum Expression {
     LiteralU8(u8),
@@ -26,12 +58,12 @@ pub enum Expression {
     LiteralBool(bool),
     Variable(String),
     BinaryOp {
-        op: String,
+        op: BinaryOp,
         left: Box<Expression>,
         right: Box<Expression>,
     },
     UnaryOp {
-        op: String, // `-` or `!`
+        op: UnaryOp,
         expression: Box<Expression>,
     },
     FunctionCall {
@@ -49,12 +81,12 @@ pub enum Expression {
         index: Box<Expression>,
     },
     Comparison {
-        op: String, // `==`, `!=`, `<`, `>`, `<=`, `>=`
+        op: ComparisonOp,
         left: Box<Expression>,
         right: Box<Expression>,
     },
     LogicalOp {
-        op: String, // `&&`, `||`
+        op: LogicalOp,
         left: Box<Expression>,
         right: Box<Expression>,
     },

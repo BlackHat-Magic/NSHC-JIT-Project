@@ -1,3 +1,5 @@
+use clap::{Arg, Command, value_parser};
+
 mod codegen;
 mod ir;
 mod ir_gen;
@@ -6,7 +8,7 @@ mod parser;
 // mod vm;
 
 fn main() {
-    let matches = Command::new("RV32I")
+    let matches = Command::new("NSHC-VMJIT")
         .arg(
             Arg::new("max_memory")
                 .short('x')
@@ -27,42 +29,28 @@ fn main() {
         )
         .get_matches();
 
-    let max_memory_kib: u64 = *matches.get_one::<u64>("max_memory").unwrap();
-    let max_memory_words: u64 = max_memory_kib * 256 & 0xFFFFFFFF;
-    let max_memory: usize = max_memory_words
+    let _max_memory_kib: u64 = *matches.get_one::<u64>("max_memory").unwrap();
+    let _max_memory_words: u64 = _max_memory_kib * 256 & 0xFFFFFFFF;
+    let _max_memory: usize = _max_memory_words
         .try_into()
         .expect("Maximum memory too large.");
 
-    let min_memory_kib: u64 = *matches.get_one::<u64>("min_memory").unwrap();
-    let min_memory_words: u64 = min_memory_kib * 256 & 0xFFFFFFFF;
-    let min_memory: usize = min_memory_words
+    let _min_memory_kib: u64 = *matches.get_one::<u64>("min_memory").unwrap();
+    let _min_memory_words: u64 = _min_memory_kib * 256 & 0xFFFFFFFF;
+    let _min_memory: usize = _min_memory_words
         .try_into()
         .expect("Minimum memory too large.");
 
-    let tokens = vec![
-        "fn".to_string(),
-        "main".to_string(),
-        "(".to_string(),
-        ")".to_string(),
-        "{".to_string(),
-        "u8".to_string(),
-        "my_u8".to_string(),
-        "=".to_string(),
-        "123".to_string(),
-        "i32".to_string(),
-        "my_i32".to_string(),
-        "=".to_string(),
-        "456".to_string(),
-        "f32".to_string(),
-        "my_f32".to_string(),
-        "=".to_string(),
-        "3.14".to_string(),
-        "return".to_string(),
-        "(".to_string(),
-        "my_i32".to_string(),
-        ")".to_string(),
-        "}".to_string(),
-    ];
+    let code = "fn main() { u8 my_u8 = 123; i32 my_i32 = 456; f32 my_f32 = 3.14; return(my_i32); }";
+    let mut tokenizer = lexer::lexer::Tokenizer::new(code);
+    let mut tokens = Vec::new();
+    loop {
+        let token = tokenizer.next_token();
+        if token == lexer::token::Token::EOF {
+            break;
+        }
+        tokens.push(token);
+    }
 
     let mut parser = parser::parser::Parser::new(tokens);
     let program = parser.parse();
