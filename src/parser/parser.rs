@@ -256,36 +256,54 @@ impl Parser {
             Some(Token::Bool) | Some(Token::U8) | Some(Token::I8) | Some(Token::U16)
             | Some(Token::I16) | Some(Token::F16) | Some(Token::U32) | Some(Token::I32)
             | Some(Token::F32) | Some(Token::U64) | Some(Token::I64) | Some(Token::F64)
-            | Some(Token::Char) | Some(Token::String) => self.parse_declaration(),
+            | Some(Token::Char) | Some(Token::String) => {
+                let stmt = self.parse_declaration()?;
+                self.expect(Token::Semicolon)?;
+                Ok(stmt)
+            },
             Some(Token::If) => self.parse_if_statement(),
             Some(Token::For) => self.parse_for_statement(),
             Some(Token::While) => self.parse_while_statement(),
-            Some(Token::Return) => self.parse_return_statement(),
+            Some(Token::Return) => {
+                let stmt = self.parse_return_statement()?;
+                self.expect(Token::Semicolon)?;
+                Ok(stmt)
+            },
             Some(Token::Identifier(_)) => {
                 let next_token = self.tokens.get(self.current + 1);
                 match next_token {
-                    Some(Token::Assign) => self.parse_assignment(),
+                    Some(Token::Assign) => {
+                        let stmt = self.parse_assignment()?;
+                        self.expect(Token::Semicolon)?;
+                        Ok(stmt)
+                    },
                     Some(Token::Increment) => {
                         let name = match self.consume() {
                             Some(Token::Identifier(name)) => name,
                             _ => unreachable!(),
                         };
                         self.consume(); // consume '++'
+                        self.expect(Token::Semicolon)?;
                         Ok(Statement::Increment {
                             variable_name: name,
                         })
-                    }
+                    },
                     Some(Token::Decrement) => {
                         let name = match self.consume() {
                             Some(Token::Identifier(name)) => name,
                             _ => unreachable!(),
                         };
                         self.consume(); // consume '--'
+                        self.expect(Token::Semicolon)?;
                         Ok(Statement::Decrement {
                             variable_name: name,
                         })
+                    },
+                    Some(Token::OpenParen) => {
+                        let stmt = self.parse_function_call_statement()?;
+                        self.expect(Token::Semicolon)?;
+                        Ok(stmt)
                     }
-                    Some(Token::OpenParen) => self.parse_function_call_statement(),
                     _ => Err(format!(
                         "Unexpected token after identifier: {:?}",
                         next_token
@@ -304,7 +322,6 @@ impl Parser {
         };
         self.expect(Token::Assign)?;
         let expression = self.parse_expression_with_context(Some(&data_type))?;
-        // Note: Removed semicolon expectation - add it back if your grammar requires it
         Ok(Statement::Declaration {
             data_type,
             variable_name,
@@ -384,7 +401,6 @@ impl Parser {
         self.expect(Token::OpenParen)?;
         let initialization = self.parse_statement()?;
         let condition = self.parse_expression()?;
-        // Note: Removed semicolon expectation here - the increment is a statement, not an expression
         let increment = self.parse_statement()?;
         self.expect(Token::CloseParen)?;
         self.expect(Token::OpenBrace)?;
