@@ -1,14 +1,33 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use crate::ir::ir::*;
 use crate::parser::ast::*;
 
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BinaryOp::Plus => write!(f, "+"),
+            BinaryOp::Minus => write!(f, "-"),
+            BinaryOp::Multiply => write!(f, "*"),
+            BinaryOp::Divide => write!(f, "/"),
+            BinaryOp::Modulo => write!(f, "%"),
+            BinaryOp::Power => write!(f, "**"),
+        }
+    }
+}
+
 fn map_data_type(data_type: &DataType) -> IRType {
     match data_type {
         DataType::U8 => IRType::U8,
+        DataType::I8 => IRType::I8,
+        DataType::U16 => IRType::U16,
+        DataType::I16 => IRType::I16,
+        DataType::F16 => IRType::F16,
+        DataType::U32 => IRType::U32,
         DataType::I32 => IRType::I32,
-        // ... other data types
-        _ => panic!("Unimplemented data type mapping"),
+        DataType::F32 => IRType::F32,
+        DataType::Bool => IRType::Bool,
     }
 }
 
@@ -202,12 +221,12 @@ impl IrGenerator {
             Statement::If {
                 condition,
                 then_branch,
-                elif_branches,
-                else_branch,
+                elif_branches: _,
+                else_branch: _,
             } => {
                 let condition_value = self.generate_expression(condition)?;
 
-                let then_label = self.next_label();
+                let _then_label = self.next_label();
                 let else_label = self.next_label();
                 let end_if_label = self.next_label();
 
@@ -235,13 +254,13 @@ impl IrGenerator {
                 Ok(())
             }
             Statement::For {
-                initialization,
-                condition,
-                increment,
-                body,
+                initialization: _,
+                condition: _,
+                increment: _,
+                body: _,
             } => Ok(()),
-            Statement::While { condition, body } => Ok(()),
-            Statement::FunctionCall { name, arguments } => Ok(()),
+            Statement::While { condition: _, body: _ } => Ok(()),
+            Statement::FunctionCall { name: _, arguments: _ } => Ok(()),
             Statement::Return { expression } => {
                 let value = self.generate_expression(expression)?;
                 let return_instruction = IRInstruction {
@@ -258,7 +277,14 @@ impl IrGenerator {
     fn generate_expression(&mut self, expression: &Expression) -> Result<IRValue, String> {
         match expression {
             Expression::LiteralU8(value) => Ok(IRValue::Constant(IRConstant::U8(*value))),
+            Expression::LiteralI8(value) => Ok(IRValue::Constant(IRConstant::I8(*value))),
+            Expression::LiteralU16(value) => Ok(IRValue::Constant(IRConstant::U16(*value))),
+            Expression::LiteralI16(value) => Ok(IRValue::Constant(IRConstant::I16(*value))),
+            Expression::LiteralF16(value) => Ok(IRValue::Constant(IRConstant::F16(*value))),
+            Expression::LiteralU32(value) => Ok(IRValue::Constant(IRConstant::U32(*value))),
             Expression::LiteralI32(value) => Ok(IRValue::Constant(IRConstant::I32(*value))),
+            Expression::LiteralF32(value) => Ok(IRValue::Constant(IRConstant::F32(*value))),
+            Expression::LiteralBool(value) => Ok(IRValue::Constant(IRConstant::Bool(*value))),
             Expression::Variable(name) => Ok(IRValue::GlobalVariable(name.clone())),
             Expression::BinaryOp { op, left, right } => {
                 // Generate IR for the left and right expressions
@@ -266,11 +292,11 @@ impl IrGenerator {
                 let right_value = self.generate_expression(right)?;
 
                 // Determine the opcode based on the operator
-                let opcode = match op.as_str() {
-                    "+" => IROpcode::Add,
-                    "-" => IROpcode::Sub,
-                    "*" => IROpcode::Mul,
-                    "/" => IROpcode::Div,
+                let opcode = match op {
+                    BinaryOp::Plus => IROpcode::Add,
+                    BinaryOp::Minus => IROpcode::Sub,
+                    BinaryOp::Multiply => IROpcode::Mul,
+                    BinaryOp::Divide => IROpcode::Div,
                     _ => return Err(format!("Unsupported binary operator: {}", op)),
                 };
 
