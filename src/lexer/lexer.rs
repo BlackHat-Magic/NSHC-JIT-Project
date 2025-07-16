@@ -1,11 +1,16 @@
 use super::token::*;
 use std::iter::Peekable;
 use std::str::Chars;
+use std::{
+    i8, i16, i32, i64, u8, u16, u32, u64, f32, f64,
+}; // Import standard types
+use half::f16; // Import the half type
 
 pub struct Tokenizer<'a> {
     input: &'a str,
     chars: Peekable<Chars<'a>>,
 }
+
 impl<'a> Tokenizer<'a> {
     pub fn new(input: &'a str) -> Self {
         Tokenizer {
@@ -125,7 +130,6 @@ impl<'a> Tokenizer<'a> {
                 '[' => Token::OpenBracket,
                 ']' => Token::CloseBracket,
                 ',' => Token::Comma,
-                ';' => Token::Semicolon,
                 '"' => self.tokenize_string(),
                 '\'' => self.tokenize_char(),
                 c if c.is_digit(10) => self.tokenize_number(c),
@@ -158,38 +162,21 @@ impl<'a> Tokenizer<'a> {
     fn tokenize_number(&mut self, first_digit: char) -> Token {
         let mut number_string = String::new();
         number_string.push(first_digit);
-        let mut has_decimal = false;
         while let Some(c) = self.peek() {
-            if c.is_digit(10) {
+            if c.is_digit(10) || c.clone() == '.' {
                 number_string.push(self.advance().unwrap());
-            } else if *c == '.' && !has_decimal {
-                number_string.push(self.advance().unwrap());
-                has_decimal = true;
             } else {
                 break;
             }
         }
-
-        if has_decimal {
-            if let Ok(value) = number_string.parse::<f32>() {
-                Token::LiteralF32(value)
-            } else {
-                panic!("Invalid f32 literal");
-            }
-        } else {
-            if let Ok(value) = number_string.parse::<i32>() {
-                Token::LiteralI32(value)
-            } else {
-                panic!("Invalid i32 literal");
-            }
-        }
+        Token::LiteralNumber(number_string) // Store as a string
     }
 
     fn tokenize_identifier(&mut self, first_char: char) -> Token {
         let mut identifier = String::new();
         identifier.push(first_char);
         while let Some(c) = self.peek() {
-            if c.is_alphanumeric() || *c == '_' {
+            if c.is_alphanumeric() || c.clone() == '_' {
                 identifier.push(self.advance().unwrap());
             } else {
                 break;
@@ -206,7 +193,6 @@ impl<'a> Tokenizer<'a> {
             "return" => Token::Return,
             "true" => Token::True,
             "false" => Token::False,
-
             "bool" => Token::Bool,
             "string" => Token::String,
             "char" => Token::Char,
@@ -221,7 +207,6 @@ impl<'a> Tokenizer<'a> {
             "u64" => Token::U64,
             "i64" => Token::I64,
             "f64" => Token::F64,
-
             _ => Token::Identifier(identifier),
         }
     }

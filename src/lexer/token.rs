@@ -29,7 +29,8 @@ pub enum Token {
     Identifier(String), // Variable names, function names
 
     // Literals
-    LiteralBool(bool),     // Boolean literal
+    True,
+    False,
     LiteralChar(char),     // Char literal
     LiteralString(String), // String literal
     LiteralNumber(String),
