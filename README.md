@@ -1,12 +1,12 @@
-# VM JIT
+<div align="center">
+# Piru
 
-simple virtual machine that runs a JIT compiler for a custom programming language.
+(Formerly Silverquill)
+</div>
 
-Focus on difference between JIT and interpretter; talk about memory and compile time.
+A compiler for a simple, strongly-typed, C-like language with manual memory management targetting a simple RISC-V based virtual machine.
 
-## TLang (placeholder name)
-
-T Lang will *probably* have the following reserved keywords:
+## Planned Reserved Keywords
 
 - TRUE, FALSE, NULL
 - [Data Types]
@@ -25,9 +25,10 @@ T Lang will *probably* have the following reserved keywords:
     - return
 - error handling
     - try, catch
+        - Maybe errors as values instead
     - assert
 
-T Lang *might* have the following reserved keywords:
+*might* have the following reserved keywords:
 
 - typedef
 - class
