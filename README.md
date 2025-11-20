@@ -1,7 +1,9 @@
 <div align="center">
+
 # Piru
 
 (Formerly Silverquill)
+
 </div>
 
 A compiler for a simple, strongly-typed, C-like language with manual memory management targetting a simple RISC-V based virtual machine.
